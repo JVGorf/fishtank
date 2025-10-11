@@ -17,7 +17,7 @@
             display: block; /* Removes any default spacing below the canvas */
             cursor: pointer;
         }
-        /* Styles for the settings panel */
+        /* Styles for the options panel */
         #settingsPanel {
             position: absolute;
             top: 60px;
@@ -29,7 +29,24 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             display: none; /* Initially hidden */
-            width: 250px;
+            width: 280px; /* Increased width for new options */
+            max-height: 80vh; /* Set a maximum height to prevent overflow */
+            overflow-y: auto; /* Add a vertical scrollbar when needed */
+        }
+        /* Custom scrollbar for the options panel */
+        #settingsPanel::-webkit-scrollbar {
+            width: 8px;
+        }
+        #settingsPanel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        #settingsPanel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+        #settingsPanel::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
         }
         #settingsPanel.visible {
             display: block;
@@ -64,6 +81,30 @@
             font-size: 0.9em;
             margin-bottom: 20px;
         }
+        .color-section {
+            margin-top: 20px;
+        }
+        .color-section.locked {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .color-swatches {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .color-swatch {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+        .color-swatch.selected {
+            border-color: #fff;
+        }
         #settingsPanel button {
             width: 100%;
             padding: 10px;
@@ -73,24 +114,74 @@
             font-size: 1em;
             border-radius: 5px;
             cursor: pointer;
+            margin-top: 20px;
             transition: background-color 0.2s;
         }
         #settingsPanel button:hover {
             background-color: #005d9c;
         }
+        #lockedNotice {
+            position: absolute;
+            top: 20px;
+            left: 320px;
+            padding: 10px 15px;
+            background-color: rgba(220, 20, 60, 0.85);
+            color: white;
+            font-size: 0.9em;
+            border-radius: 5px;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        /* Styles for the sound notice */
+        #soundNotice {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            font-size: 1.2em;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
     </style>
 </head>
 <body>
     <canvas id="fishTankCanvas"></canvas>
+    <div id="soundNotice">Click anywhere to enable sounds.</div>
+    <div id="lockedNotice"></div>
 
-    <!-- Settings Panel HTML --><div id="settingsPanel">
-        <h3>Settings</h3>
+    <div id="settingsPanel">
+        <h3>Options</h3>
         <label for="fishNameInput">Fish Name:</label>
         <input type="text" id="fishNameInput" maxlength="15" placeholder="Enter a name">
         
         <label for="volumeSlider" style="margin-top: 20px;">Volume:</label>
         <input type="range" id="volumeSlider" min="0" max="10" value="5">
         <div class="volume-display" id="volumeValue">5</div>
+        
+        <div id="finColorSection" class="color-section">
+            <label>Fin Color (Requires 50 Food)</label>
+            <div class="color-swatches" id="finColorSwatches"></div>
+        </div>
+        
+        <div id="tailColorSection" class="color-section">
+            <label>Tail Color (Requires 100 Food)</label>
+            <div class="color-swatches" id="tailColorSwatches"></div>
+        </div>
+
+        <div id="bodyColorSection" class="color-section">
+            <label>Body Color (Requires 150 Food)</label>
+            <div class="color-swatches" id="bodyColorSwatches"></div>
+        </div>
 
         <button id="saveSettingsBtn">Save</button>
     </div>
@@ -100,47 +191,55 @@
         const canvas = document.getElementById('fishTankCanvas');
         const ctx = canvas.getContext('2d');
 
-        // --- Settings Panel DOM Elements ---
+        // --- DOM Elements ---
         const settingsPanel = document.getElementById('settingsPanel');
         const fishNameInput = document.getElementById('fishNameInput');
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeValue = document.getElementById('volumeValue');
         const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const soundNotice = document.getElementById('soundNotice');
+        const lockedNotice = document.getElementById('lockedNotice');
         let isSettingsOpen = false;
+        let noticeTimeout, lockedNoticeTimeout;
+        
+        // --- Constants ---
+        const FIN_REQ = 50;
+        const TAIL_REQ = 100;
+        const BODY_REQ = 150;
+        const colorOptions = ['#ff8c00', '#cc6600', '#ff4500', '#dc143c', '#ffd700', '#00ced1', '#4169e1', '#9370db', '#32cd32', '#ffffff'];
 
         // Set initial canvas size
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-
-        // Adjust canvas size when the browser window is resized
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         });
 
-
-        // --- Background Audio Setup ---
+        // --- Audio Setup ---
         const bgMusic = new Audio('https://onx.wdfiles.com/local--files/fishtank/JoelFazhari-aquarium-ambience-sounds-10-min-193236.mp3');
         bgMusic.loop = true;
-        bgMusic.volume = 0.5; // Default volume
+        bgMusic.volume = 0.5;
 
-        // A function to start the audio, called on the first user interaction to comply with autoplay policies.
-        function startAudio() {
-            const playPromise = bgMusic.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.error("Audio playback failed:", error);
-                });
+        function hideSoundNotice() {
+            if (soundNotice) {
+                soundNotice.style.opacity = '0';
+                setTimeout(() => { if (soundNotice) soundNotice.remove(); }, 500);
             }
+            clearTimeout(noticeTimeout);
+        }
+        function startAudio() {
+            hideSoundNotice();
+            const playPromise = bgMusic.play();
+            if (playPromise !== undefined) playPromise.catch(error => console.error("Audio playback failed:", error));
             window.removeEventListener('mousedown', startAudio);
             window.removeEventListener('touchstart', startAudio);
         }
-
-        // Listen for the first click or touch to start the audio.
         window.addEventListener('mousedown', startAudio);
         window.addEventListener('touchstart', startAudio);
-        
-        // --- Cookie Helper Functions ---
+        noticeTimeout = setTimeout(hideSoundNotice, 5000);
+
+        // --- Cookie Functions ---
         function setCookie(name, value, days) {
             let expires = "";
             if (days) {
@@ -150,13 +249,11 @@
             }
             document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax";
         }
-
         function getCookie(name) {
             const nameEQ = name + "=";
             const ca = document.cookie.split(';');
-            for (let i = 0; i < ca.length; i++) {
-                let c = ca[i];
-                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+            for (let c of ca) {
+                c = c.trim();
                 if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
             }
             return null;
@@ -167,7 +264,10 @@
             const data = {
                 name: fish.name,
                 foodEaten: fish.foodEaten,
-                volume: bgMusic.volume
+                volume: bgMusic.volume,
+                finColor: fish.finColor,
+                tailColor: fish.tailColor,
+                bodyColor: fish.bodyColor
             };
             setCookie('fishData', JSON.stringify(data), 3650);
         }
@@ -180,8 +280,11 @@
                     fish.name = data.name || assignNewFishName();
                     fish.foodEaten = data.foodEaten || 0;
                     bgMusic.volume = (typeof data.volume === 'number') ? data.volume : 0.5;
+                    fish.finColor = data.finColor || '#cc6600';
+                    fish.tailColor = data.tailColor || '#ff8c00';
+                    fish.bodyColor = data.bodyColor || '#ff8c00';
                 } catch (e) {
-                    console.error("Could not parse fish data from cookie, starting fresh.", e);
+                    console.error("Could not parse fish data from cookie.", e);
                     assignNewFish();
                 }
             } else {
@@ -198,30 +301,20 @@
             fish.name = assignNewFishName();
             fish.foodEaten = 0;
             bgMusic.volume = 0.5;
-            saveFishData(); // Save the newly created fish data right away
+            fish.finColor = '#cc6600';
+            fish.tailColor = '#ff8c00';
+            fish.bodyColor = '#ff8c00';
+            saveFishData();
         }
 
 
         // --- Fish Object ---
         const fish = {
-            name: '', 
-            foodEaten: 0, 
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            size: 20,
-            speed: 1,
-            originalSpeed: 1, 
-            color: '#ff8c00', 
-            direction: 1, 
-            angle: 0, 
-            currentAngle: 0, 
-            state: 'swimming', 
-            pauseTimer: 0,
-            pupilOffsetX: 0,
-            pupilOffsetY: 0,
-            pupilTargetX: 0,
-            pupilTargetY: 0,
-            pupilTimer: 120,
+            name: '', foodEaten: 0, x: canvas.width / 2, y: canvas.height / 2,
+            size: 20, speed: 1, originalSpeed: 1, 
+            bodyColor: '#ff8c00', tailColor: '#ff8c00', finColor: '#cc6600',
+            direction: 1, angle: 0, currentAngle: 0, state: 'swimming', pauseTimer: 0,
+            pupilOffsetX: 0, pupilOffsetY: 0, pupilTargetX: 0, pupilTargetY: 0, pupilTimer: 120,
             target: { x: Math.random() * canvas.width, y: Math.random() * (canvas.height - 200) + 50 },
 
             draw: function() {
@@ -229,9 +322,9 @@
                 ctx.translate(this.x, this.y); 
                 ctx.scale(this.direction, 1); 
                 ctx.rotate(this.currentAngle); 
-                ctx.fillStyle = this.color;
                 
                 // Body
+                ctx.fillStyle = this.bodyColor;
                 ctx.beginPath();
                 ctx.moveTo(0, 0); 
                 ctx.quadraticCurveTo(-this.size * 0.7, -this.size * 0.9, -this.size * 1.5, 0);
@@ -239,6 +332,7 @@
                 ctx.fill();
 
                 // Tail
+                ctx.fillStyle = this.tailColor;
                 ctx.beginPath();
                 ctx.moveTo(-this.size * 1.5, 0);
                 ctx.lineTo(-this.size * 2, -this.size * 0.5);
@@ -247,362 +341,151 @@
                 ctx.fill();
 
                 // Fin
-                ctx.fillStyle = '#cc6600'; 
+                ctx.fillStyle = this.finColor;
                 ctx.beginPath();
-                const finTopY = -this.size * 0.3; 
-                const finBackX = -this.size * 1.0; 
+                const finTopY = -this.size * 0.3, finBackX = -this.size * 1.0; 
                 const finSwayAmount = Math.sin(Date.now() * 0.005) * this.size * 0.05; 
                 ctx.moveTo(finBackX, finTopY); 
-                ctx.quadraticCurveTo(
-                    finBackX + this.size * 0.4 + finSwayAmount, 
-                    finTopY + this.size * 0.2, 
-                    finBackX, 
-                    finTopY + this.size * 0.6 
-                );
+                ctx.quadraticCurveTo(finBackX + this.size * 0.4 + finSwayAmount, finTopY + this.size * 0.2, finBackX, finTopY + this.size * 0.6);
                 ctx.closePath();
                 ctx.fill();
 
-
-                // Eye - white with black stroke and pupil
-                const eyeRadius = this.size * 0.2; 
-                const pupilRadius = this.size * 0.1; 
-
-                // White part of the eye
+                // Eye
+                const eyeRadius = this.size * 0.2, pupilRadius = this.size * 0.1;
                 ctx.fillStyle = 'white';
                 ctx.beginPath();
                 ctx.arc(-this.size * 0.3, -this.size * 0.15, eyeRadius, 0, Math.PI * 2);
                 ctx.fill();
-
-                // Black stroke around the eye
                 ctx.strokeStyle = 'black';
                 ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.arc(-this.size * 0.3, -this.size * 0.15, eyeRadius, 0, Math.PI * 2);
                 ctx.stroke();
-
-                // Black pupil with animated offset
                 ctx.fillStyle = 'black';
                 ctx.beginPath();
                 ctx.arc(-this.size * 0.3 + this.pupilOffsetX, -this.size * 0.15 + this.pupilOffsetY, pupilRadius, 0, Math.PI * 2);
                 ctx.fill();
-
                 ctx.restore(); 
             },
 
             update: function() {
-                // --- State Transition Logic ---
-                if (foodBubble.active && this.state !== 'eating' && foodBubble.y < canvas.height - 120) {
-                    this.state = 'eating';
-                    this.target = foodBubble;
-                    this.speed = this.originalSpeed * 2;
-                } 
-                else if (this.state === 'eating' && !foodBubble.active) {
-                    this.speed = this.originalSpeed;
-                    this.setNewTarget();
+                // State transitions and movement logic (remains the same)
+                if (foodBubble.active && this.state !== 'eating' && foodBubble.y < canvas.height - 120) { this.state = 'eating'; this.target = foodBubble; this.speed = this.originalSpeed * 2; } 
+                else if (this.state === 'eating' && !foodBubble.active) { this.speed = this.originalSpeed; this.setNewTarget(); }
+                if (this.state === 'pausing' || this.state === 'inspecting') { this.pauseTimer--; this.angle = 0; if (this.pauseTimer <= 0) this.setNewTarget(); } 
+                else { const target = this.state === 'eating' ? foodBubble : this.target; const dx = target.x - this.x, dy = target.y - this.y; const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < this.size + 5) { this.angle = 0; if (this.state === 'eating') { foodBubble.active = false; this.foodEaten++; saveFishData(); this.speed = this.originalSpeed; this.setNewTarget(); } else if (this.state === 'investigating') { this.state = 'inspecting'; this.pauseTimer = Math.random() * 180 + 180; } else { if (Math.random() < 0.2) this.setInvestigationTarget(); else if (Math.random() < 0.1) { this.state = 'pausing'; this.pauseTimer = Math.random() * 180 + 60; } else this.setNewTarget(); } } 
+                    else { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; this.direction = (dx > 0) ? 1 : -1; let targetAngle = Math.atan2(dy, this.direction * dx); this.angle = (Math.abs(targetAngle) < (10 * Math.PI / 180)) ? 0 : targetAngle; }
                 }
-
-                // --- Handle Actions Based on State ---
-                if (this.state === 'pausing' || this.state === 'inspecting') {
-                    this.pauseTimer--;
-                    this.angle = 0;
-                    if (this.pauseTimer <= 0) {
-                        this.setNewTarget();
-                    }
-                } else { // Handle movement for 'swimming', 'investigating', 'eating'
-                    const currentTarget = this.state === 'eating' ? foodBubble : this.target;
-                    const dx = currentTarget.x - this.x;
-                    const dy = currentTarget.y - this.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    if (distance < this.size + 5) { // Arrived at target
-                        this.angle = 0; 
-                        if (this.state === 'eating') {
-                            foodBubble.active = false;
-                            this.foodEaten++;
-                            saveFishData();
-                            this.speed = this.originalSpeed;
-                            this.setNewTarget();
-                        } else if (this.state === 'investigating') {
-                            this.state = 'inspecting';
-                            this.pauseTimer = Math.random() * 180 + 180; // Inspect for 2-4 seconds
-                        } else { // Arrived at a normal swimming target
-                            if (Math.random() < 0.2) { // Increased chance to investigate
-                                this.setInvestigationTarget();
-                            } else if (Math.random() < 0.1) { // Chance to just pause
-                                this.state = 'pausing';
-                                this.pauseTimer = Math.random() * 180 + 60;
-                            } else {
-                                this.setNewTarget();
-                            }
-                        }
-                    } else { // Move towards target
-                        this.x += (dx / distance) * this.speed;
-                        this.y += (dy / distance) * this.speed;
-                        this.direction = (dx > 0) ? 1 : -1;
-
-                        let targetAngle = Math.atan2(dy, this.direction * dx);
-                        const angleThreshold = 10 * (Math.PI / 180);
-                        this.angle = (Math.abs(targetAngle) < angleThreshold) ? 0 : targetAngle;
-                    }
-                }
-                
-                // Smoothly update the current drawing angle
                 this.currentAngle += (this.angle - this.currentAngle) * 0.1;
 
-                // --- Pupil Animation Logic ---
-                this.pupilTimer--;
-                if (this.pupilTimer <= 0) {
-                    const maxOffset = this.size * 0.1; // eyeRadius - pupilRadius
-                    if (this.pupilTargetX === 0 && this.pupilTargetY === 0) { // If pupil is centered...
-                        if (this.state === 'inspecting') {
-                            // Look towards the object of interest (forward)
-                            this.pupilTargetX = (Math.random() * 0.5 + 0.4) * maxOffset;
-                            this.pupilTargetY = (Math.random() * 2 - 1) * maxOffset * 0.7; // Less vertical movement
-                        } else { // Look randomly
-                            this.pupilTargetX = (Math.random() * 2 - 1) * maxOffset;
-                            this.pupilTargetY = (Math.random() * 2 - 1) * maxOffset;
-                        }
-                        this.pupilTimer = Math.random() * 60 + 60; // Hold look for 1-2s
-                    } else { // If pupil is looking somewhere, reset it to center
-                        this.pupilTargetX = 0;
-                        this.pupilTargetY = 0;
-                        // Set delay for next look (more frequent if paused/inspecting)
-                        const baseDelay = (this.state === 'pausing' || this.state === 'inspecting') ? 45 : 180;
-                        this.pupilTimer = Math.random() * 120 + baseDelay;
-                    }
-                }
-                // Smoothly move the pupil towards its target
+                // Pupil animation logic (remains the same)
+                const maxOffset = this.size * 0.1;
+                if (foodBubble.active) { const foodDX = foodBubble.x - this.x, foodDY = foodBubble.y - this.y; const foodDX_rel = foodDX * this.direction; const dist = Math.sqrt(foodDX_rel * foodDX_rel + foodDY * foodDY); if (dist > 1) { this.pupilTargetX = (foodDX_rel / dist) * maxOffset; this.pupilTargetY = (foodDY / dist) * maxOffset; } } 
+                else { this.pupilTimer--; if (this.pupilTimer <= 0) { if (this.pupilTargetX === 0 && this.pupilTargetY === 0) { if (this.state === 'inspecting') { this.pupilTargetX = (Math.random() * 0.5 + 0.4) * maxOffset; this.pupilTargetY = (Math.random() * 2 - 1) * maxOffset * 0.7; } else { this.pupilTargetX = (Math.random() * 2 - 1) * maxOffset; this.pupilTargetY = (Math.random() * 2 - 1) * maxOffset; } this.pupilTimer = Math.random() * 60 + 60; } else { this.pupilTargetX = 0; this.pupilTargetY = 0; const baseDelay = (this.state === 'pausing' || this.state === 'inspecting') ? 45 : 180; this.pupilTimer = Math.random() * 120 + baseDelay; } } }
                 this.pupilOffsetX += (this.pupilTargetX - this.pupilOffsetX) * 0.08;
                 this.pupilOffsetY += (this.pupilTargetY - this.pupilOffsetY) * 0.08;
             },
             
-            setNewTarget: function() {
-                this.state = 'swimming';
-                const sandLevel = canvas.height - 100;
-                // Expanded vertical swimming area to get closer to the sand
-                this.target = {
-                    x: Math.random() * (canvas.width - 100) + 50,
-                    y: Math.random() * (sandLevel - 80) + 50 // y range is now from 50 to just above the sand
-                };
-            },
-
-            setInvestigationTarget: function() {
-                this.state = 'investigating';
-                const pointsOfInterest = [
-                    { x: canvas.width * 0.75, y: canvas.height - 150 }, // Castle
-                    { x: canvas.width * 0.2, y: canvas.height - 120 }  // Treasure Chest
-                ];
-                this.target = pointsOfInterest[Math.floor(Math.random() * pointsOfInterest.length)];
-            }
+            setNewTarget: function() { this.state = 'swimming'; const sandLevel = canvas.height - 100; this.target = { x: Math.random() * (canvas.width - 100) + 50, y: Math.random() * (sandLevel - 80) + 50 }; },
+            setInvestigationTarget: function() { this.state = 'investigating'; const points = [{ x: canvas.width*0.75, y: canvas.height-150 }, { x: canvas.width*0.2, y: canvas.height-120 }]; this.target = points[Math.floor(Math.random() * points.length)]; }
         };
 
-        // --- Load existing fish data or create a new one ---
+        // Load data
         loadFishData();
 
-
-        // --- Food Bubble Object ---
-        const foodBubble = {
-            x: -100, y: -100, radius: 10, speed: 1, active: false,
-            color: 'rgba(255, 255, 0, 0.7)', borderColor: 'rgba(255, 255, 0, 0.9)',
-            spawn: function() {
-                this.x = Math.random() * canvas.width;
-                this.y = canvas.height - 90;
-                this.radius = Math.random() * 8 + 6;
-                this.speed = Math.random() * 0.5 + 0.8; 
-                this.active = true;
-            },
-            draw: function() {
-                if (!this.active) return;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.strokeStyle = this.borderColor;
-                ctx.lineWidth = 2;
-                ctx.fill();
-                ctx.stroke();
-            },
-            update: function() {
-                if (!this.active) return;
-                this.y -= this.speed;
-                if (this.y < -this.radius) this.active = false;
-            }
-        };
+        // --- Food Bubble & Bubbles Logic (remains the same) ---
+        const foodBubble={x:-100,y:-100,radius:10,speed:1,active:false,color:'rgba(255,255,0,0.7)',borderColor:'rgba(255,255,0,0.9)',spawn:function(){this.x=Math.random()*canvas.width;this.y=canvas.height-90;this.radius=Math.random()*5+2;this.speed=Math.random()*0.5+0.8;this.active=true},draw:function(){if(!this.active)return;ctx.beginPath();ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);ctx.fillStyle=this.color;ctx.strokeStyle=this.borderColor;ctx.lineWidth=2;ctx.fill();ctx.stroke()},update:function(){if(!this.active)return;this.y-=this.speed;if(this.y<-this.radius)this.active=false}};function scheduleNextFoodBubble(){const delay=Math.random()*120000+60000;setTimeout(()=>{if(!foodBubble.active)foodBubble.spawn();scheduleNextFoodBubble()},delay)}
+        let bubbles=[];const numBubbles=25;class Bubble{constructor(){this.reset();this.y=Math.random()*canvas.height}reset(){this.x=Math.random()*canvas.width;this.y=canvas.height+Math.random()*100;this.radius=Math.random()*5+1;this.speed=Math.random()*1+0.5}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.2)';ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;ctx.fill();ctx.stroke()}update(){this.y-=this.speed;if(this.y<-this.radius)this.reset()}}for(let i=0;i<numBubbles;i++)bubbles.push(new Bubble());
         
-        // --- Food Bubble Spawning Logic ---
-        function scheduleNextFoodBubble() {
-            const delay = Math.random() * 120000 + 60000;
-            setTimeout(() => {
-                if (!foodBubble.active) foodBubble.spawn();
-                scheduleNextFoodBubble();
-            }, delay);
+        // --- Scenery Drawing (remains mostly the same) ---
+        function drawSettingsIcon(x,y,size){ctx.save();ctx.translate(x,y);ctx.font=`${size}px Arial`;ctx.fillStyle=isSettingsOpen?'#00c3ff':'rgba(255,255,255,0.8)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('☰',0,0);ctx.restore()}
+        const settingsIcon={x:30,y:30,size:25};function drawUI(){drawSettingsIcon(settingsIcon.x,settingsIcon.y,settingsIcon.size);ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font='22px Arial';ctx.textAlign='left';ctx.textBaseline='top';const text=`${fish.name} | Food Eaten: ${fish.foodEaten}`;ctx.fillText(text,settingsIcon.x+35,20)}
+        function drawWater(){const gradient=ctx.createLinearGradient(0,0,0,canvas.height);gradient.addColorStop(0,'#0077be');gradient.addColorStop(1,'#003d7a');ctx.fillStyle=gradient;ctx.fillRect(0,0,canvas.width,canvas.height)}
+        function drawSand(){ctx.fillStyle='#d2b48c';ctx.beginPath();ctx.moveTo(0,canvas.height-80);for(let i=0;i<canvas.width;i++){ctx.lineTo(i,canvas.height-80+Math.sin(i*0.01)*10)}ctx.lineTo(canvas.width,canvas.height);ctx.lineTo(0,canvas.height);ctx.closePath();ctx.fill()}
+        function drawCastle(){ctx.fillStyle='#8a8a8a';ctx.strokeStyle='#5a5a5a';ctx.lineWidth=3;const baseX=canvas.width*0.75,baseY=canvas.height-70;ctx.fillRect(baseX-50,baseY-100,100,100);ctx.strokeRect(baseX-50,baseY-100,100,100);ctx.beginPath();ctx.moveTo(baseX-60,baseY-100);ctx.lineTo(baseX,baseY-150);ctx.lineTo(baseX+60,baseY-100);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#5a5a5a';ctx.fillRect(baseX-15,baseY-30,30,30)}
+        function drawTreasureChest(){ctx.fillStyle='#8B4513';ctx.strokeStyle='#5a2d0c';ctx.lineWidth=4;const baseX=canvas.width*0.2,baseY=canvas.height-70;ctx.fillRect(baseX-40,baseY-30,80,40);ctx.strokeRect(baseX-40,baseY-30,80,40);ctx.beginPath();ctx.moveTo(baseX-40,baseY-30);ctx.quadraticCurveTo(baseX,baseY-70,baseX+40,baseY-30);ctx.closePath();ctx.fill();ctx.stroke()}
+        function drawRocks(){ctx.fillStyle='#696969';ctx.strokeStyle='#404040';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(100,canvas.height-70);ctx.quadraticCurveTo(120,canvas.height-110,150,canvas.height-75);ctx.quadraticCurveTo(130,canvas.height-50,100,canvas.height-70);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(canvas.width-150,canvas.height-80);ctx.quadraticCurveTo(canvas.width-130,canvas.height-120,canvas.width-100,canvas.height-85);ctx.quadraticCurveTo(canvas.width-120,canvas.height-60,canvas.width-150,canvas.height-80);ctx.fill();ctx.stroke()}
+        function drawPlants(){ctx.strokeStyle='#006400';ctx.lineWidth=4;drawSeaweed(canvas.width*0.3,canvas.height-70,180,20,0.05);drawSeaweed(canvas.width*0.3+20,canvas.height-70,160,15,0.06);drawSeaweed(canvas.width*0.9,canvas.height-70,200,25,-0.04)}
+        function drawSeaweed(x,y,height,width,sway){ctx.beginPath();ctx.moveTo(x,y);for(let i=0;i<height;i++){let swayX=x+Math.sin(i*sway+Date.now()*0.001)*(width*(1-i/height));ctx.lineTo(swayX,y-i)}ctx.stroke()}
+
+        // --- Options Panel Logic ---
+        function showLockedMessage(req) {
+            lockedNotice.textContent = `Your fish must eat ${req} food bubbles to unlock this.`;
+            lockedNotice.style.opacity = '1';
+            clearTimeout(lockedNoticeTimeout);
+            lockedNoticeTimeout = setTimeout(() => { lockedNotice.style.opacity = '0'; }, 3000);
         }
 
-
-        // --- Bubbles ---
-        let bubbles = [];
-        const numBubbles = 25;
-        class Bubble {
-            constructor() { this.reset(); this.y = Math.random() * canvas.height; }
-            reset() {
-                this.x = Math.random() * canvas.width;
-                this.y = canvas.height + Math.random() * 100;
-                this.radius = Math.random() * 5 + 1;
-                this.speed = Math.random() * 1 + 0.5;
-            }
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-                ctx.lineWidth = 1;
-                ctx.fill();
-                ctx.stroke();
-            }
-            update() { this.y -= this.speed; if (this.y < -this.radius) this.reset(); }
-        }
-        for (let i = 0; i < numBubbles; i++) bubbles.push(new Bubble());
-
-
-        // --- Drawing Functions for Scenery ---
-        
-        function drawSettingsIcon(x, y, size) {
-            const rotation = Date.now() / 1000 * 0.2; 
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(rotation);
-            ctx.font = `${size}px Arial`;
-            ctx.fillStyle = isSettingsOpen ? '#00c3ff' : 'rgba(255, 255, 255, 0.8)';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('⚙️', 0, 0); 
-            ctx.restore();
+        function createColorSwatches(containerId, part, requirement) {
+            const container = document.getElementById(containerId);
+            colorOptions.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.addEventListener('click', () => {
+                    if (fish.foodEaten >= requirement) {
+                        fish[part] = color;
+                        updateSelectedSwatchUI();
+                    } else {
+                        showLockedMessage(requirement);
+                    }
+                });
+                container.appendChild(swatch);
+            });
         }
 
-        const settingsIcon = { x: 30, y: 30, size: 25 };
-
-        function drawUI() {
-            drawSettingsIcon(settingsIcon.x, settingsIcon.y, settingsIcon.size);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.font = '22px Arial';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            const text = `${fish.name} | Food Eaten: ${fish.foodEaten}`;
-            ctx.fillText(text, settingsIcon.x + 35, 20); 
+        function updateSelectedSwatchUI() {
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+            const finSwatch = [...document.getElementById('finColorSwatches').children].find(s => s.style.backgroundColor === fish.finColor);
+            if(finSwatch) finSwatch.classList.add('selected');
+            const tailSwatch = [...document.getElementById('tailColorSwatches').children].find(s => s.style.backgroundColor === fish.tailColor);
+            if(tailSwatch) tailSwatch.classList.add('selected');
+            const bodySwatch = [...document.getElementById('bodyColorSwatches').children].find(s => s.style.backgroundColor === fish.bodyColor);
+            if(bodySwatch) bodySwatch.classList.add('selected');
         }
 
-        function drawWater() {
-            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#0077be');
-            gradient.addColorStop(1, '#003d7a');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        function updateOptionsLockState() {
+            document.getElementById('finColorSection').classList.toggle('locked', fish.foodEaten < FIN_REQ);
+            document.getElementById('tailColorSection').classList.toggle('locked', fish.foodEaten < TAIL_REQ);
+            document.getElementById('bodyColorSection').classList.toggle('locked', fish.foodEaten < BODY_REQ);
         }
 
-        function drawSand() {
-            ctx.fillStyle = '#d2b48c';
-            ctx.beginPath();
-            ctx.moveTo(0, canvas.height - 80);
-            for (let i = 0; i < canvas.width; i++) {
-                ctx.lineTo(i, canvas.height - 80 + Math.sin(i * 0.01) * 10);
-            }
-            ctx.lineTo(canvas.width, canvas.height);
-            ctx.lineTo(0, canvas.height);
-            ctx.closePath();
-            ctx.fill();
-        }
-
-        function drawCastle() {
-            ctx.fillStyle = '#8a8a8a'; ctx.strokeStyle = '#5a5a5a'; ctx.lineWidth = 3;
-            const baseX = canvas.width * 0.75, baseY = canvas.height - 70;
-            ctx.fillRect(baseX - 50, baseY - 100, 100, 100); ctx.strokeRect(baseX - 50, baseY - 100, 100, 100);
-            ctx.beginPath(); ctx.moveTo(baseX - 60, baseY - 100);
-            ctx.lineTo(baseX, baseY - 150); ctx.lineTo(baseX + 60, baseY - 100);
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = '#5a5a5a'; ctx.fillRect(baseX - 15, baseY - 30, 30, 30);
-        }
-
-        function drawTreasureChest() {
-            const baseX = canvas.width * 0.2, baseY = canvas.height - 70;
-            ctx.fillStyle = '#8B4513'; ctx.strokeStyle = '#5a2d0c'; ctx.lineWidth = 4;
-            ctx.fillRect(baseX - 40, baseY - 30, 80, 40); ctx.strokeRect(baseX - 40, baseY - 30, 80, 40);
-            ctx.beginPath(); ctx.moveTo(baseX - 40, baseY - 30);
-            ctx.quadraticCurveTo(baseX, baseY - 70, baseX + 40, baseY - 30);
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-        }
-
-        function drawRocks() {
-             ctx.fillStyle = '#696969'; ctx.strokeStyle = '#404040'; ctx.lineWidth = 2;
-             ctx.beginPath(); ctx.moveTo(100, canvas.height - 70);
-             ctx.quadraticCurveTo(120, canvas.height - 110, 150, canvas.height - 75);
-             ctx.quadraticCurveTo(130, canvas.height - 50, 100, canvas.height - 70);
-             ctx.fill(); ctx.stroke();
-             ctx.beginPath(); ctx.moveTo(canvas.width - 150, canvas.height - 80);
-             ctx.quadraticCurveTo(canvas.width - 130, canvas.height - 120, canvas.width - 100, canvas.height - 85);
-             ctx.quadraticCurveTo(canvas.width - 120, canvas.height - 60, canvas.width - 150, canvas.height - 80);
-             ctx.fill(); ctx.stroke();
-        }
-
-        function drawPlants() {
-            ctx.strokeStyle = '#006400'; ctx.lineWidth = 4;
-            drawSeaweed(canvas.width * 0.3, canvas.height - 70, 180, 20, 0.05);
-            drawSeaweed(canvas.width * 0.3 + 20, canvas.height - 70, 160, 15, 0.06);
-            drawSeaweed(canvas.width * 0.9, canvas.height - 70, 200, 25, -0.04);
-        }
-        
-        function drawSeaweed(x, y, height, width, sway) {
-            ctx.beginPath(); ctx.moveTo(x, y);
-            for (let i = 0; i < height; i++) {
-                let swayX = x + Math.sin(i * sway + Date.now() * 0.001) * (width * (1 - i/height));
-                ctx.lineTo(swayX, y - i);
-            }
-            ctx.stroke();
-        }
-
-        // --- Settings Panel Logic ---
         function toggleSettingsPanel() {
             isSettingsOpen = !isSettingsOpen;
             if (isSettingsOpen) {
                 fishNameInput.value = fish.name;
                 volumeSlider.value = bgMusic.volume * 10;
                 volumeValue.textContent = volumeSlider.value;
+                updateOptionsLockState();
+                updateSelectedSwatchUI();
                 settingsPanel.classList.add('visible');
             } else {
                 settingsPanel.classList.remove('visible');
             }
         }
+        
+        createColorSwatches('finColorSwatches', 'finColor', FIN_REQ);
+        createColorSwatches('tailColorSwatches', 'tailColor', TAIL_REQ);
+        createColorSwatches('bodyColorSwatches', 'bodyColor', BODY_REQ);
 
         canvas.addEventListener('click', (event) => {
             const rect = canvas.getBoundingClientRect();
             const mouseX = event.clientX - rect.left;
             const mouseY = event.clientY - rect.top;
-
-            const dx = mouseX - settingsIcon.x;
-            const dy = mouseY - settingsIcon.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < settingsIcon.size) { 
-                toggleSettingsPanel();
-            }
+            const dx = mouseX - settingsIcon.x, dy = mouseY - settingsIcon.y;
+            if (Math.sqrt(dx * dx + dy * dy) < settingsIcon.size) { toggleSettingsPanel(); }
         });
 
-        volumeSlider.addEventListener('input', () => {
-            const newVolume = volumeSlider.value / 10;
-            bgMusic.volume = newVolume;
-            volumeValue.textContent = volumeSlider.value;
-        });
-
+        volumeSlider.addEventListener('input', () => { bgMusic.volume = volumeSlider.value / 10; volumeValue.textContent = volumeSlider.value; });
         saveSettingsBtn.addEventListener('click', () => {
             const newName = fishNameInput.value.trim();
-            if (newName) { 
-                fish.name = newName.substring(0, 15);
-            }
+            if (newName) fish.name = newName.substring(0, 15);
             saveFishData();
             toggleSettingsPanel(); 
         });
 
-
         // --- Main Animation Loop ---
         function animate() {
+            requestAnimationFrame(animate);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawWater();
             drawSand();
@@ -610,29 +493,16 @@
             drawTreasureChest();
             drawRocks();
             drawPlants();
-
-            if (foodBubble.active) {
-                foodBubble.update();
-                foodBubble.draw();
-            }
-
-            bubbles.forEach(bubble => {
-                bubble.update();
-                bubble.draw();
-            });
-
+            if (foodBubble.active) { foodBubble.update(); foodBubble.draw(); }
+            bubbles.forEach(bubble => { bubble.update(); bubble.draw(); });
             fish.update();
             fish.draw();
-
             drawUI();
-
-            requestAnimationFrame(animate);
         }
 
-        // Start the food spawning cycle and animation
+        // Start animation and food spawning
         scheduleNextFoodBubble();
         animate();
-
     </script>
 </body>
 </html>
