@@ -168,14 +168,14 @@
         <input type="range" id="volumeSlider" min="0" max="10" value="5">
         <div class="volume-display" id="volumeValue">5</div>
         
-        <div id="finColorSection" class="color-section">
-            <label>Fin Color (Requires 50 Food)</label>
-            <div class="color-swatches" id="finColorSwatches"></div>
+        <div id="outlineColorSection" class="color-section">
+            <label>Outline Color (Requires 50 Food)</label>
+            <div class="color-swatches" id="outlineColorSwatches"></div>
         </div>
         
-        <div id="tailColorSection" class="color-section">
-            <label>Tail Color (Requires 100 Food)</label>
-            <div class="color-swatches" id="tailColorSwatches"></div>
+        <div id="stripesColorSection" class="color-section">
+            <label>Stripes Color (Requires 100 Food)</label>
+            <div class="color-swatches" id="stripesColorSwatches"></div>
         </div>
 
         <div id="bodyColorSection" class="color-section">
@@ -203,10 +203,10 @@
         let noticeTimeout, lockedNoticeTimeout;
         
         // --- Constants ---
-        const FIN_REQ = 50;
-        const TAIL_REQ = 100;
+        const OUTLINE_REQ = 50;
+        const STRIPES_REQ = 100;
         const BODY_REQ = 150;
-        const colorOptions = ['#ff8c00', '#cc6600', '#ff4500', '#dc143c', '#ffd700', '#00ced1', '#4169e1', '#9370db', '#32cd32', '#ffffff'];
+        const colorOptions = ['#ff8c00', '#000000', '#ffffff', '#dc143c', '#ffd700', '#00ced1', '#4169e1', '#9370db', '#32cd32', '#ff4500'];
 
         // Set initial canvas size
         canvas.width = window.innerWidth;
@@ -265,8 +265,8 @@
                 name: fish.name,
                 foodEaten: fish.foodEaten,
                 volume: bgMusic.volume,
-                finColor: fish.finColor,
-                tailColor: fish.tailColor,
+                outlineColor: fish.outlineColor,
+                stripesColor: fish.stripesColor,
                 bodyColor: fish.bodyColor
             };
             setCookie('fishData', JSON.stringify(data), 3650);
@@ -280,8 +280,8 @@
                     fish.name = data.name || assignNewFishName();
                     fish.foodEaten = data.foodEaten || 0;
                     bgMusic.volume = (typeof data.volume === 'number') ? data.volume : 0.5;
-                    fish.finColor = data.finColor || '#cc6600';
-                    fish.tailColor = data.tailColor || '#ff8c00';
+                    fish.outlineColor = data.outlineColor || '#000000';
+                    fish.stripesColor = data.stripesColor || '#ffffff';
                     fish.bodyColor = data.bodyColor || '#ff8c00';
                 } catch (e) {
                     console.error("Could not parse fish data from cookie.", e);
@@ -301,8 +301,8 @@
             fish.name = assignNewFishName();
             fish.foodEaten = 0;
             bgMusic.volume = 0.5;
-            fish.finColor = '#cc6600';
-            fish.tailColor = '#ff8c00';
+            fish.outlineColor = '#000000';
+            fish.stripesColor = '#ffffff';
             fish.bodyColor = '#ff8c00';
             saveFishData();
         }
@@ -311,101 +311,407 @@
         // --- Fish Object ---
         const fish = {
             name: '', foodEaten: 0, x: canvas.width / 2, y: canvas.height / 2,
-            size: 20, speed: 1, originalSpeed: 1, 
-            bodyColor: '#ff8c00', tailColor: '#ff8c00', finColor: '#cc6600',
+            size: 25, speed: 1, originalSpeed: 1, 
+            bodyColor: '#ff8c00', stripesColor: '#ffffff', outlineColor: '#000000',
             direction: 1, angle: 0, currentAngle: 0, state: 'swimming', pauseTimer: 0,
             pupilOffsetX: 0, pupilOffsetY: 0, pupilTargetX: 0, pupilTargetY: 0, pupilTimer: 120,
             target: { x: Math.random() * canvas.width, y: Math.random() * (canvas.height - 200) + 50 },
 
             draw: function() {
-                ctx.save(); 
-                ctx.translate(this.x, this.y); 
-                ctx.scale(this.direction, 1); 
-                ctx.rotate(this.currentAngle); 
-                
-                // Body
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.direction, 1);
+                ctx.rotate(this.currentAngle);
+
+                // Define paths for all fish parts
+                const bodyPath = new Path2D();
+                bodyPath.moveTo(0, 0);
+                bodyPath.quadraticCurveTo(-this.size * 0.7, -this.size * 0.9, -this.size * 1.5, 0);
+                bodyPath.quadraticCurveTo(-this.size * 0.7, this.size * 0.9, 0, 0);
+
+                const tailPath = new Path2D();
+                tailPath.moveTo(-this.size * 1.5, 0);
+                tailPath.quadraticCurveTo(-this.size * 1.7, -this.size * 0.5, -this.size * 1.8, -this.size * 0.4);
+                tailPath.quadraticCurveTo(-this.size * 1.7, this.size * 0.5, -this.size * 1.8, this.size * 0.4);
+                tailPath.closePath();
+
+                // Create a combined path of body and tail for clipping stripes
+                const fullFishPath = new Path2D(bodyPath);
+                fullFishPath.addPath(tailPath);
+
+                // Define stripe paths
+                const stripe1Path = new Path2D();
+                stripe1Path.moveTo(-this.size * 0.4, -this.size * 0.65);
+                stripe1Path.quadraticCurveTo(-this.size * 0.2, 0, -this.size * 0.4, this.size * 0.65);
+                stripe1Path.lineTo(-this.size * 0.6, this.size * 0.6);
+                stripe1Path.quadraticCurveTo(-this.size * 0.4, 0, -this.size * 0.6, -this.size * 0.6);
+                stripe1Path.closePath();
+
+                const stripe2Path = new Path2D();
+                stripe2Path.moveTo(-this.size * 0.9, -this.size * 0.8);
+                stripe2Path.quadraticCurveTo(-this.size * 0.8, 0, -this.size * 0.9, this.size * 0.8);
+                stripe2Path.lineTo(-this.size * 1.1, this.size * 0.75);
+                stripe2Path.quadraticCurveTo(-this.size * 1.0, 0, -this.size * 1.1, -this.size * 0.75);
+                stripe2Path.closePath();
+
+                const stripe3Path = new Path2D();
+                stripe3Path.moveTo(-this.size * 1.4, -this.size * 0.4);
+                stripe3Path.quadraticCurveTo(-this.size * 1.35, 0, -this.size * 1.4, this.size * 0.4);
+                stripe3Path.lineTo(-this.size * 1.6, this.size * 0.35);
+                stripe3Path.quadraticCurveTo(-this.size * 1.55, 0, -this.size * 1.6, -this.size * 0.35);
+                stripe3Path.closePath();
+
+                // Draw Body (main color)
                 ctx.fillStyle = this.bodyColor;
-                ctx.beginPath();
-                ctx.moveTo(0, 0); 
-                ctx.quadraticCurveTo(-this.size * 0.7, -this.size * 0.9, -this.size * 1.5, 0);
-                ctx.quadraticCurveTo(-this.size * 0.7, this.size * 0.9, 0, 0);
-                ctx.fill();
+                ctx.fill(bodyPath);
 
-                // Tail
-                ctx.fillStyle = this.tailColor;
-                ctx.beginPath();
-                ctx.moveTo(-this.size * 1.5, 0);
-                ctx.lineTo(-this.size * 2, -this.size * 0.5);
-                ctx.lineTo(-this.size * 2, this.size * 0.5);
-                ctx.closePath();
-                ctx.fill();
+                // Draw Tail (main color)
+                ctx.fillStyle = this.bodyColor;
+                ctx.fill(tailPath);
 
-                // Fin
-                ctx.fillStyle = this.finColor;
-                ctx.beginPath();
-                const finTopY = -this.size * 0.3, finBackX = -this.size * 1.0; 
-                const finSwayAmount = Math.sin(Date.now() * 0.005) * this.size * 0.05; 
-                ctx.moveTo(finBackX, finTopY); 
-                ctx.quadraticCurveTo(finBackX + this.size * 0.4 + finSwayAmount, finTopY + this.size * 0.2, finBackX, finTopY + this.size * 0.6);
-                ctx.closePath();
-                ctx.fill();
+                // Helper function to draw a stripe
+                const drawStripe = (path) => {
+                    ctx.fillStyle = this.stripesColor;
+                    ctx.fill(path);
+                    ctx.strokeStyle = this.outlineColor;
+                    ctx.lineWidth = this.size * 0.08;
+                    ctx.stroke(path);
+                };
+                
+                // Use clipping to keep stripes within the full fish shape
+                ctx.save();
+                ctx.clip(fullFishPath);
+                drawStripe(stripe1Path);
+                drawStripe(stripe2Path);
+                drawStripe(stripe3Path);
+                ctx.restore();
 
-                // Eye
+                // Draw Tail Outline
+                ctx.strokeStyle = this.outlineColor;
+                ctx.lineWidth = this.size * 0.06;
+                ctx.stroke(tailPath);
+                
+                // Fin is still commented out as requested
+                /*
+                const finPath = new Path2D();
+                const finTopY = -this.size * 0.3, finBackX = -this.size * 1.0;
+                const finSwayAmount = Math.sin(Date.now() * 0.005) * this.size * 0.05;
+                finPath.moveTo(finBackX, finTopY);
+                finPath.quadraticCurveTo(finBackX + this.size * 0.4 + finSwayAmount, finTopY + this.size * 0.2, finBackX, finTopY + this.size * 0.6);
+                finPath.closePath();
+                ctx.fillStyle = this.bodyColor;
+                ctx.fill(finPath);
+                ctx.strokeStyle = this.outlineColor;
+                ctx.lineWidth = this.size * 0.06;
+                ctx.stroke(finPath);
+                */
+                
+                // Draw Eye
                 const eyeRadius = this.size * 0.2, pupilRadius = this.size * 0.1;
                 ctx.fillStyle = 'white';
                 ctx.beginPath();
                 ctx.arc(-this.size * 0.3, -this.size * 0.15, eyeRadius, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = 'black';
+                ctx.strokeStyle = '#000000';
                 ctx.lineWidth = 1;
                 ctx.stroke();
-                ctx.fillStyle = 'black';
+                ctx.fillStyle = '#000000';
                 ctx.beginPath();
                 ctx.arc(-this.size * 0.3 + this.pupilOffsetX, -this.size * 0.15 + this.pupilOffsetY, pupilRadius, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.restore(); 
+
+                ctx.restore();
             },
 
             update: function() {
-                // State transitions and movement logic (remains the same)
-                if (foodBubble.active && this.state !== 'eating' && foodBubble.y < canvas.height - 120) { this.state = 'eating'; this.target = foodBubble; this.speed = this.originalSpeed * 2; } 
-                else if (this.state === 'eating' && !foodBubble.active) { this.speed = this.originalSpeed; this.setNewTarget(); }
-                if (this.state === 'pausing' || this.state === 'inspecting') { this.pauseTimer--; this.angle = 0; if (this.pauseTimer <= 0) this.setNewTarget(); } 
-                else { const target = this.state === 'eating' ? foodBubble : this.target; const dx = target.x - this.x, dy = target.y - this.y; const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < this.size + 5) { this.angle = 0; if (this.state === 'eating') { foodBubble.active = false; this.foodEaten++; saveFishData(); this.speed = this.originalSpeed; this.setNewTarget(); } else if (this.state === 'investigating') { this.state = 'inspecting'; this.pauseTimer = Math.random() * 180 + 180; } else { if (Math.random() < 0.2) this.setInvestigationTarget(); else if (Math.random() < 0.1) { this.state = 'pausing'; this.pauseTimer = Math.random() * 180 + 60; } else this.setNewTarget(); } } 
-                    else { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; this.direction = (dx > 0) ? 1 : -1; let targetAngle = Math.atan2(dy, this.direction * dx); this.angle = (Math.abs(targetAngle) < (10 * Math.PI / 180)) ? 0 : targetAngle; }
+                // State transitions
+                if (foodBubble.active && this.state !== 'eating' && foodBubble.y < canvas.height - 120) {
+                    this.state = 'eating';
+                    this.target = foodBubble;
+                    this.speed = this.originalSpeed * 2;
+                } else if (this.state === 'eating' && !foodBubble.active) {
+                    this.speed = this.originalSpeed;
+                    this.setNewTarget();
+                }
+
+                // Handle actions based on state
+                if (this.state === 'pausing' || this.state === 'inspecting') {
+                    this.pauseTimer--;
+                    this.angle = 0;
+                    if (this.pauseTimer <= 0) {
+                        this.setNewTarget();
+                    }
+                } else { // Handle movement
+                    const target = this.state === 'eating' ? foodBubble : this.target;
+                    const dx = target.x - this.x;
+                    const dy = target.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < this.size + 5) { // Arrived at target
+                        this.angle = 0;
+                        if (this.state === 'eating') {
+                            foodBubble.active = false;
+                            this.foodEaten++;
+                            saveFishData();
+                            this.speed = this.originalSpeed;
+                            this.setNewTarget();
+                        } else if (this.state === 'investigating') {
+                            this.state = 'inspecting';
+                            this.pauseTimer = Math.random() * 180 + 180;
+                        } else {
+                            if (Math.random() < 0.2) {
+                                this.setInvestigationTarget();
+                            } else if (Math.random() < 0.1) {
+                                this.state = 'pausing';
+                                this.pauseTimer = Math.random() * 180 + 60;
+                            } else {
+                                this.setNewTarget();
+                            }
+                        }
+                    } else { // Move towards target
+                        this.x += (dx / dist) * this.speed;
+                        this.y += (dy / dist) * this.speed;
+                        this.direction = (dx > 0) ? 1 : -1;
+                        let targetAngle = Math.atan2(dy, this.direction * dx);
+                        this.angle = (Math.abs(targetAngle) < (10 * Math.PI / 180)) ? 0 : targetAngle;
+                    }
                 }
                 this.currentAngle += (this.angle - this.currentAngle) * 0.1;
 
-                // Pupil animation logic (remains the same)
+                // Pupil animation
                 const maxOffset = this.size * 0.1;
-                if (foodBubble.active) { const foodDX = foodBubble.x - this.x, foodDY = foodBubble.y - this.y; const foodDX_rel = foodDX * this.direction; const dist = Math.sqrt(foodDX_rel * foodDX_rel + foodDY * foodDY); if (dist > 1) { this.pupilTargetX = (foodDX_rel / dist) * maxOffset; this.pupilTargetY = (foodDY / dist) * maxOffset; } } 
-                else { this.pupilTimer--; if (this.pupilTimer <= 0) { if (this.pupilTargetX === 0 && this.pupilTargetY === 0) { if (this.state === 'inspecting') { this.pupilTargetX = (Math.random() * 0.5 + 0.4) * maxOffset; this.pupilTargetY = (Math.random() * 2 - 1) * maxOffset * 0.7; } else { this.pupilTargetX = (Math.random() * 2 - 1) * maxOffset; this.pupilTargetY = (Math.random() * 2 - 1) * maxOffset; } this.pupilTimer = Math.random() * 60 + 60; } else { this.pupilTargetX = 0; this.pupilTargetY = 0; const baseDelay = (this.state === 'pausing' || this.state === 'inspecting') ? 45 : 180; this.pupilTimer = Math.random() * 120 + baseDelay; } } }
+                if (foodBubble.active) {
+                    const foodDX = foodBubble.x - this.x, foodDY = foodBubble.y - this.y;
+                    const foodDX_rel = foodDX * this.direction;
+                    const dist = Math.sqrt(foodDX_rel * foodDX_rel + foodDY * foodDY);
+                    if (dist > 1) {
+                        this.pupilTargetX = (foodDX_rel / dist) * maxOffset;
+                        this.pupilTargetY = (foodDY / dist) * maxOffset;
+                    }
+                } else {
+                    this.pupilTimer--;
+                    if (this.pupilTimer <= 0) {
+                        if (this.pupilTargetX === 0 && this.pupilTargetY === 0) {
+                            if (this.state === 'inspecting') {
+                                this.pupilTargetX = (Math.random() * 0.5 + 0.4) * maxOffset;
+                                this.pupilTargetY = (Math.random() * 2 - 1) * maxOffset * 0.7;
+                            } else {
+                                this.pupilTargetX = (Math.random() * 2 - 1) * maxOffset;
+                                this.pupilTargetY = (Math.random() * 2 - 1) * maxOffset;
+                            }
+                            this.pupilTimer = Math.random() * 60 + 60;
+                        } else {
+                            this.pupilTargetX = 0;
+                            this.pupilTargetY = 0;
+                            const baseDelay = (this.state === 'pausing' || this.state === 'inspecting') ? 45 : 180;
+                            this.pupilTimer = Math.random() * 120 + baseDelay;
+                        }
+                    }
+                }
                 this.pupilOffsetX += (this.pupilTargetX - this.pupilOffsetX) * 0.08;
                 this.pupilOffsetY += (this.pupilTargetY - this.pupilOffsetY) * 0.08;
             },
             
-            setNewTarget: function() { this.state = 'swimming'; const sandLevel = canvas.height - 100; this.target = { x: Math.random() * (canvas.width - 100) + 50, y: Math.random() * (sandLevel - 80) + 50 }; },
-            setInvestigationTarget: function() { this.state = 'investigating'; const points = [{ x: canvas.width*0.75, y: canvas.height-150 }, { x: canvas.width*0.2, y: canvas.height-120 }]; this.target = points[Math.floor(Math.random() * points.length)]; }
+            setNewTarget: function() {
+                this.state = 'swimming';
+                const sandLevel = canvas.height - 100;
+                this.target = {
+                    x: Math.random() * (canvas.width - 100) + 50,
+                    y: Math.random() * (sandLevel - 80) + 50
+                };
+            },
+
+            setInvestigationTarget: function() {
+                this.state = 'investigating';
+                const points = [
+                    { x: canvas.width * 0.75, y: canvas.height - 150 }, // Castle
+                    { x: canvas.width * 0.2, y: canvas.height - 120 }  // Chest
+                ];
+                this.target = points[Math.floor(Math.random() * points.length)];
+            }
         };
 
         // Load data
         loadFishData();
 
-        // --- Food Bubble & Bubbles Logic (remains the same) ---
-        const foodBubble={x:-100,y:-100,radius:10,speed:1,active:false,color:'rgba(255,255,0,0.7)',borderColor:'rgba(255,255,0,0.9)',spawn:function(){this.x=Math.random()*canvas.width;this.y=canvas.height-90;this.radius=Math.random()*5+2;this.speed=Math.random()*0.5+0.8;this.active=true},draw:function(){if(!this.active)return;ctx.beginPath();ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);ctx.fillStyle=this.color;ctx.strokeStyle=this.borderColor;ctx.lineWidth=2;ctx.fill();ctx.stroke()},update:function(){if(!this.active)return;this.y-=this.speed;if(this.y<-this.radius)this.active=false}};function scheduleNextFoodBubble(){const delay=Math.random()*120000+60000;setTimeout(()=>{if(!foodBubble.active)foodBubble.spawn();scheduleNextFoodBubble()},delay)}
-        let bubbles=[];const numBubbles=25;class Bubble{constructor(){this.reset();this.y=Math.random()*canvas.height}reset(){this.x=Math.random()*canvas.width;this.y=canvas.height+Math.random()*100;this.radius=Math.random()*5+1;this.speed=Math.random()*1+0.5}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.2)';ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;ctx.fill();ctx.stroke()}update(){this.y-=this.speed;if(this.y<-this.radius)this.reset()}}for(let i=0;i<numBubbles;i++)bubbles.push(new Bubble());
+        // --- Food Bubble & Bubbles Logic ---
+        const foodBubble = {
+            x: -100, y: -100, radius: 10, speed: 1, active: false,
+            color: 'rgba(255, 255, 0, 0.7)', borderColor: 'rgba(255, 255, 0, 0.9)',
+            spawn: function() {
+                this.x = Math.random() * canvas.width;
+                this.y = canvas.height - 90;
+                this.radius = Math.random() * 5 + 2;
+                this.speed = Math.random() * 0.5 + 0.8;
+                this.active = true;
+            },
+            draw: function() {
+                if (!this.active) return;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.strokeStyle = this.borderColor;
+                ctx.lineWidth = 2;
+                ctx.fill();
+                ctx.stroke();
+            },
+            update: function() {
+                if (!this.active) return;
+                this.y -= this.speed;
+                if (this.y < -this.radius) this.active = false;
+            }
+        };
+
+        function scheduleNextFoodBubble() {
+            const delay = Math.random() * 120000 + 60000;
+            setTimeout(() => {
+                if (!foodBubble.active) foodBubble.spawn();
+                scheduleNextFoodBubble();
+            }, delay);
+        }
+
+        let bubbles = [];
+        const numBubbles = 25;
+        class Bubble {
+            constructor() {
+                this.reset();
+                this.y = Math.random() * canvas.height;
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = canvas.height + Math.random() * 100;
+                this.radius = Math.random() * 5 + 1;
+                this.speed = Math.random() * 1 + 0.5;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.fill();
+                ctx.stroke();
+            }
+            update() {
+                this.y -= this.speed;
+                if (this.y < -this.radius) this.reset();
+            }
+        }
+        for (let i = 0; i < numBubbles; i++) bubbles.push(new Bubble());
         
-        // --- Scenery Drawing (remains mostly the same) ---
-        function drawSettingsIcon(x,y,size){ctx.save();ctx.translate(x,y);ctx.font=`${size}px Arial`;ctx.fillStyle=isSettingsOpen?'#00c3ff':'rgba(255,255,255,0.8)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('☰',0,0);ctx.restore()}
-        const settingsIcon={x:30,y:30,size:25};function drawUI(){drawSettingsIcon(settingsIcon.x,settingsIcon.y,settingsIcon.size);ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font='22px Arial';ctx.textAlign='left';ctx.textBaseline='top';const text=`${fish.name} | Food Eaten: ${fish.foodEaten}`;ctx.fillText(text,settingsIcon.x+35,20)}
-        function drawWater(){const gradient=ctx.createLinearGradient(0,0,0,canvas.height);gradient.addColorStop(0,'#0077be');gradient.addColorStop(1,'#003d7a');ctx.fillStyle=gradient;ctx.fillRect(0,0,canvas.width,canvas.height)}
-        function drawSand(){ctx.fillStyle='#d2b48c';ctx.beginPath();ctx.moveTo(0,canvas.height-80);for(let i=0;i<canvas.width;i++){ctx.lineTo(i,canvas.height-80+Math.sin(i*0.01)*10)}ctx.lineTo(canvas.width,canvas.height);ctx.lineTo(0,canvas.height);ctx.closePath();ctx.fill()}
-        function drawCastle(){ctx.fillStyle='#8a8a8a';ctx.strokeStyle='#5a5a5a';ctx.lineWidth=3;const baseX=canvas.width*0.75,baseY=canvas.height-70;ctx.fillRect(baseX-50,baseY-100,100,100);ctx.strokeRect(baseX-50,baseY-100,100,100);ctx.beginPath();ctx.moveTo(baseX-60,baseY-100);ctx.lineTo(baseX,baseY-150);ctx.lineTo(baseX+60,baseY-100);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#5a5a5a';ctx.fillRect(baseX-15,baseY-30,30,30)}
-        function drawTreasureChest(){ctx.fillStyle='#8B4513';ctx.strokeStyle='#5a2d0c';ctx.lineWidth=4;const baseX=canvas.width*0.2,baseY=canvas.height-70;ctx.fillRect(baseX-40,baseY-30,80,40);ctx.strokeRect(baseX-40,baseY-30,80,40);ctx.beginPath();ctx.moveTo(baseX-40,baseY-30);ctx.quadraticCurveTo(baseX,baseY-70,baseX+40,baseY-30);ctx.closePath();ctx.fill();ctx.stroke()}
-        function drawRocks(){ctx.fillStyle='#696969';ctx.strokeStyle='#404040';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(100,canvas.height-70);ctx.quadraticCurveTo(120,canvas.height-110,150,canvas.height-75);ctx.quadraticCurveTo(130,canvas.height-50,100,canvas.height-70);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(canvas.width-150,canvas.height-80);ctx.quadraticCurveTo(canvas.width-130,canvas.height-120,canvas.width-100,canvas.height-85);ctx.quadraticCurveTo(canvas.width-120,canvas.height-60,canvas.width-150,canvas.height-80);ctx.fill();ctx.stroke()}
-        function drawPlants(){ctx.strokeStyle='#006400';ctx.lineWidth=4;drawSeaweed(canvas.width*0.3,canvas.height-70,180,20,0.05);drawSeaweed(canvas.width*0.3+20,canvas.height-70,160,15,0.06);drawSeaweed(canvas.width*0.9,canvas.height-70,200,25,-0.04)}
-        function drawSeaweed(x,y,height,width,sway){ctx.beginPath();ctx.moveTo(x,y);for(let i=0;i<height;i++){let swayX=x+Math.sin(i*sway+Date.now()*0.001)*(width*(1-i/height));ctx.lineTo(swayX,y-i)}ctx.stroke()}
+        // --- Scenery Drawing ---
+        function drawSettingsIcon(x, y, size) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.font = `${size}px Arial`;
+            ctx.fillStyle = isSettingsOpen ? '#00c3ff' : 'rgba(255, 255, 255, 0.8)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('☰', 0, 0);
+            ctx.restore();
+        }
+
+        const settingsIcon = { x: 30, y: 30, size: 25 };
+
+        function drawUI() {
+            drawSettingsIcon(settingsIcon.x, settingsIcon.y, settingsIcon.size);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = '22px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            const text = `${fish.name} | Food Eaten: ${fish.foodEaten}`;
+            ctx.fillText(text, settingsIcon.x + 35, 20);
+        }
+
+        function drawWater() {
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#0077be');
+            gradient.addColorStop(1, '#003d7a');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawSand() {
+            ctx.fillStyle = '#d2b48c';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - 80);
+            for (let i = 0; i < canvas.width; i++) {
+                ctx.lineTo(i, canvas.height - 80 + Math.sin(i * 0.01) * 10);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawCastle() {
+            ctx.fillStyle = '#8a8a8a';
+            ctx.strokeStyle = '#5a5a5a';
+            ctx.lineWidth = 3;
+            const baseX = canvas.width * 0.75, baseY = canvas.height - 70;
+            ctx.fillRect(baseX - 50, baseY - 100, 100, 100);
+            ctx.strokeRect(baseX - 50, baseY - 100, 100, 100);
+            ctx.beginPath();
+            ctx.moveTo(baseX - 60, baseY - 100);
+            ctx.lineTo(baseX, baseY - 150);
+            ctx.lineTo(baseX + 60, baseY - 100);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#5a5a5a';
+            ctx.fillRect(baseX - 15, baseY - 30, 30, 30);
+        }
+
+        function drawTreasureChest() {
+            ctx.fillStyle = '#8B4513';
+            ctx.strokeStyle = '#5a2d0c';
+            ctx.lineWidth = 4;
+            const baseX = canvas.width * 0.2, baseY = canvas.height - 70;
+            ctx.fillRect(baseX - 40, baseY - 30, 80, 40);
+            ctx.strokeRect(baseX - 40, baseY - 30, 80, 40);
+            ctx.beginPath();
+            ctx.moveTo(baseX - 40, baseY - 30);
+            ctx.quadraticCurveTo(baseX, baseY - 70, baseX + 40, baseY - 30);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        function drawRocks() {
+            ctx.fillStyle = '#696969';
+            ctx.strokeStyle = '#404040';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(100, canvas.height - 70);
+            ctx.quadraticCurveTo(120, canvas.height - 110, 150, canvas.height - 75);
+            ctx.quadraticCurveTo(130, canvas.height - 50, 100, canvas.height - 70);
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(canvas.width - 150, canvas.height - 80);
+            ctx.quadraticCurveTo(canvas.width - 130, canvas.height - 120, canvas.width - 100, canvas.height - 85);
+            ctx.quadraticCurveTo(canvas.width - 120, canvas.height - 60, canvas.width - 150, canvas.height - 80);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        function drawPlants() {
+            ctx.strokeStyle = '#006400';
+            ctx.lineWidth = 4;
+            drawSeaweed(canvas.width * 0.3, canvas.height - 70, 180, 20, 0.05);
+            drawSeaweed(canvas.width * 0.3 + 20, canvas.height - 70, 160, 15, 0.06);
+            drawSeaweed(canvas.width * 0.9, canvas.height - 70, 200, 25, -0.04);
+        }
+
+        function drawSeaweed(x, y, height, width, sway) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            for (let i = 0; i < height; i++) {
+                let swayX = x + Math.sin(i * sway + Date.now() * 0.001) * (width * (1 - i / height));
+                ctx.lineTo(swayX, y - i);
+            }
+            ctx.stroke();
+        }
 
         // --- Options Panel Logic ---
         function showLockedMessage(req) {
@@ -435,17 +741,17 @@
 
         function updateSelectedSwatchUI() {
             document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-            const finSwatch = [...document.getElementById('finColorSwatches').children].find(s => s.style.backgroundColor === fish.finColor);
-            if(finSwatch) finSwatch.classList.add('selected');
-            const tailSwatch = [...document.getElementById('tailColorSwatches').children].find(s => s.style.backgroundColor === fish.tailColor);
-            if(tailSwatch) tailSwatch.classList.add('selected');
+            const outlineSwatch = [...document.getElementById('outlineColorSwatches').children].find(s => s.style.backgroundColor === fish.outlineColor);
+            if(outlineSwatch) outlineSwatch.classList.add('selected');
+            const stripesSwatch = [...document.getElementById('stripesColorSwatches').children].find(s => s.style.backgroundColor === fish.stripesColor);
+            if(stripesSwatch) stripesSwatch.classList.add('selected');
             const bodySwatch = [...document.getElementById('bodyColorSwatches').children].find(s => s.style.backgroundColor === fish.bodyColor);
             if(bodySwatch) bodySwatch.classList.add('selected');
         }
 
         function updateOptionsLockState() {
-            document.getElementById('finColorSection').classList.toggle('locked', fish.foodEaten < FIN_REQ);
-            document.getElementById('tailColorSection').classList.toggle('locked', fish.foodEaten < TAIL_REQ);
+            document.getElementById('outlineColorSection').classList.toggle('locked', fish.foodEaten < OUTLINE_REQ);
+            document.getElementById('stripesColorSection').classList.toggle('locked', fish.foodEaten < STRIPES_REQ);
             document.getElementById('bodyColorSection').classList.toggle('locked', fish.foodEaten < BODY_REQ);
         }
 
@@ -463,8 +769,8 @@
             }
         }
         
-        createColorSwatches('finColorSwatches', 'finColor', FIN_REQ);
-        createColorSwatches('tailColorSwatches', 'tailColor', TAIL_REQ);
+        createColorSwatches('outlineColorSwatches', 'outlineColor', OUTLINE_REQ);
+        createColorSwatches('stripesColorSwatches', 'stripesColor', STRIPES_REQ);
         createColorSwatches('bodyColorSwatches', 'bodyColor', BODY_REQ);
 
         canvas.addEventListener('click', (event) => {
