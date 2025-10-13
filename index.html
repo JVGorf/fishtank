@@ -391,21 +391,6 @@
                 ctx.lineWidth = this.size * 0.06;
                 ctx.stroke(tailPath);
                 
-                // Fin is still commented out as requested
-                /*
-                const finPath = new Path2D();
-                const finTopY = -this.size * 0.3, finBackX = -this.size * 1.0;
-                const finSwayAmount = Math.sin(Date.now() * 0.005) * this.size * 0.05;
-                finPath.moveTo(finBackX, finTopY);
-                finPath.quadraticCurveTo(finBackX + this.size * 0.4 + finSwayAmount, finTopY + this.size * 0.2, finBackX, finTopY + this.size * 0.6);
-                finPath.closePath();
-                ctx.fillStyle = this.bodyColor;
-                ctx.fill(finPath);
-                ctx.strokeStyle = this.outlineColor;
-                ctx.lineWidth = this.size * 0.06;
-                ctx.stroke(finPath);
-                */
-                
                 // Draw Eye
                 const eyeRadius = this.size * 0.2, pupilRadius = this.size * 0.1;
                 ctx.fillStyle = 'white';
