@@ -330,11 +330,12 @@
                 bodyPath.quadraticCurveTo(-this.size * 0.7, this.size * 0.9, 0, 0);
 
                 const tailPath = new Path2D();
-                tailPath.moveTo(-this.size * 1.3, 0);
-                tailPath.quadraticCurveTo(-this.size * 1.7, -this.size * 0.5, -this.size * 1.8, -this.size * 0.4);
-                tailPath.quadraticCurveTo(-this.size * 1.7, this.size * 0.5, -this.size * 1.8, this.size * 0.4);
+                tailPath.moveTo(-this.size * 1.5, 0);
+                tailPath.quadraticCurveTo(-this.size * 1.7, -this.size * 0.5, -this.size * 1.9, -this.size * 0.4);
+                tailPath.lineTo(-this.size * 1.9, this.size * 0.4);
+                tailPath.quadraticCurveTo(-this.size * 1.7, this.size * 0.5, -this.size * 1.5, 0);
                 tailPath.closePath();
-
+                
                 // Create a combined path of body and tail for clipping stripes
                 const fullFishPath = new Path2D(bodyPath);
                 fullFishPath.addPath(tailPath);
@@ -355,18 +356,15 @@
                 stripe2Path.closePath();
 
                 const stripe3Path = new Path2D();
-                stripe3Path.moveTo(-this.size * 1.4, -this.size * 0.4);
-                stripe3Path.quadraticCurveTo(-this.size * 1.35, 0, -this.size * 1.4, this.size * 0.4);
-                stripe3Path.lineTo(-this.size * 1.6, this.size * 0.35);
-                stripe3Path.quadraticCurveTo(-this.size * 1.55, 0, -this.size * 1.6, -this.size * 0.35);
+                stripe3Path.moveTo(-this.size * 1.4, -this.size * 0.45);
+                stripe3Path.quadraticCurveTo(-this.size * 1.35, 0, -this.size * 1.4, this.size * 0.45);
+                stripe3Path.lineTo(-this.size * 1.55, this.size * 0.4);
+                stripe3Path.quadraticCurveTo(-this.size * 1.5, 0, -this.size * 1.55, -this.size * 0.4);
                 stripe3Path.closePath();
 
-                // Draw Body (main color)
+                // Draw Body and Tail (main color)
                 ctx.fillStyle = this.bodyColor;
                 ctx.fill(bodyPath);
-
-                // Draw Tail (main color)
-                ctx.fillStyle = this.bodyColor;
                 ctx.fill(tailPath);
 
                 // Helper function to draw a stripe
@@ -390,6 +388,21 @@
                 ctx.strokeStyle = this.outlineColor;
                 ctx.lineWidth = this.size * 0.06;
                 ctx.stroke(tailPath);
+                
+                // Fin is still commented out as requested
+                /*
+                const finPath = new Path2D();
+                const finTopY = -this.size * 0.3, finBackX = -this.size * 1.0;
+                const finSwayAmount = Math.sin(Date.now() * 0.005) * this.size * 0.05;
+                finPath.moveTo(finBackX, finTopY);
+                finPath.quadraticCurveTo(finBackX + this.size * 0.4 + finSwayAmount, finTopY + this.size * 0.2, finBackX, finTopY + this.size * 0.6);
+                finPath.closePath();
+                ctx.fillStyle = this.bodyColor;
+                ctx.fill(finPath);
+                ctx.strokeStyle = this.outlineColor;
+                ctx.lineWidth = this.size * 0.06;
+                ctx.stroke(finPath);
+                */
                 
                 // Draw Eye
                 const eyeRadius = this.size * 0.2, pupilRadius = this.size * 0.1;
