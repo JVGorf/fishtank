@@ -101,9 +101,22 @@
             cursor: pointer;
             border: 2px solid transparent;
             transition: border-color 0.2s;
+            position: relative; /* Needed for checkmark positioning */
         }
         .color-swatch.selected {
             border-color: #fff;
+        }
+        /* Style for the checkmark on selected colors */
+        .color-swatch.selected::after {
+            content: '✔'; /* Unicode checkmark character */
+            color: #555555; /* A solid, dark gray color */
+            font-size: 16px;
+            font-weight: bold;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-shadow: 0 0 3px rgba(255, 255, 255, 0.7); /* Helps visibility on dark colors */
         }
         #settingsPanel button {
             width: 100%;
@@ -206,7 +219,7 @@
         const OUTLINE_REQ = 50;
         const STRIPES_REQ = 100;
         const BODY_REQ = 150;
-        const colorOptions = ['#ff8c00', '#000000', '#ffffff', '#dc143c', '#ffd700', '#00ced1', '#4169e1', '#9370db', '#32cd32', '#ff4500'];
+        const colorOptions = ['#ff8c00', '#000000', '#ffffff', '#dc143c', '#ffd700', '#00ced1', '#4169e1', '#9370db', '#32cd32', '#ff4500', '#FFC0CB', '#A52A2A', '#808080', '#ADD8E6', '#FF00FF', '#00FFFF', '#008000', '#4B0082'];
 
         // Set initial canvas size
         canvas.width = window.innerWidth;
@@ -619,7 +632,7 @@
             const xStart = settingsIcon.x + 35;
             const yStart = 20;
             const fishNameText = fish.name;
-            const scoreText = ` | Food Eaten: ${fish.foodEaten}`;
+            const scoreText = ` Food Eaten: ${fish.foodEaten}`;
 
             ctx.font = 'bold 22px Arial';
             ctx.textAlign = 'left';
@@ -829,4 +842,6 @@
     </script>
 </body>
 </html>
+
+
 
