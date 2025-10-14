@@ -329,6 +329,7 @@
                 bodyPath.quadraticCurveTo(-this.size * 0.7, -this.size * 0.9, -this.size * 1.5, 0);
                 bodyPath.quadraticCurveTo(-this.size * 0.7, this.size * 0.9, 0, 0);
 
+                // REVERTED: Correct, shorter tail path
                 const tailPath = new Path2D();
                 tailPath.moveTo(-this.size * 1.5, 0);
                 tailPath.quadraticCurveTo(-this.size * 1.7, -this.size * 0.5, -this.size * 1.9, -this.size * 0.4);
@@ -384,9 +385,10 @@
                 drawStripe(stripe3Path);
                 ctx.restore();
 
-                // Draw Tail Outline
+                // Draw Body and Tail Outlines
                 ctx.strokeStyle = this.outlineColor;
                 ctx.lineWidth = this.size * 0.06;
+                ctx.stroke(bodyPath);
                 ctx.stroke(tailPath);
                 
                 // Fin is still commented out as requested
@@ -613,12 +615,29 @@
 
         function drawUI() {
             drawSettingsIcon(settingsIcon.x, settingsIcon.y, settingsIcon.size);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.font = '22px Arial';
+
+            const xStart = settingsIcon.x + 35;
+            const yStart = 20;
+            const fishNameText = fish.name;
+            const scoreText = ` | Food Eaten: ${fish.foodEaten}`;
+
+            ctx.font = 'bold 22px Arial';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            const text = `${fish.name} | Food Eaten: ${fish.foodEaten}`;
-            ctx.fillText(text, settingsIcon.x + 35, 20);
+
+            // --- Draw Fish Name with custom colors ---
+            ctx.strokeStyle = fish.outlineColor;
+            ctx.fillStyle = fish.bodyColor;
+            ctx.lineWidth = 4;
+            ctx.strokeText(fishNameText, xStart, yStart);
+            ctx.fillText(fishNameText, xStart, yStart);
+
+            // --- Draw the rest of the text in default white ---
+            const nameWidth = ctx.measureText(fishNameText).width;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; // Reset to default text color
+            ctx.strokeStyle = 'transparent'; // No stroke for the rest
+            ctx.lineWidth = 1; 
+            ctx.fillText(scoreText, xStart + nameWidth, yStart);
         }
 
         function drawWater() {
