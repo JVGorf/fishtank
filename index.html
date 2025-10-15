@@ -215,20 +215,17 @@
         let isSettingsOpen = false;
         let noticeTimeout, lockedNoticeTimeout;
         
-        // --- Constants ---
+        // --- Constants & Global Variables ---
         const OUTLINE_REQ = 50;
         const STRIPES_REQ = 100;
         const BODY_REQ = 150;
         const colorOptions = ['#ff8c00', '#000000', '#ffffff', '#dc143c', '#ffd700', '#00ced1', '#4169e1', '#9370db', '#32cd32', '#ff4500', '#FFC0CB', '#A52A2A', '#808080', '#ADD8E6', '#FF00FF', '#00FFFF', '#008000', '#4B0082'];
+        let treasurePile = []; // Array to hold the static treasure coins
 
         // Set initial canvas size
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
-
+        
         // --- Audio Setup ---
         const bgMusic = new Audio('https://onx.wdfiles.com/local--files/fishtank/JoelFazhari-aquarium-ambience-sounds-10-min-193236.mp3');
         bgMusic.loop = true;
@@ -342,7 +339,6 @@
                 bodyPath.quadraticCurveTo(-this.size * 0.7, -this.size * 0.9, -this.size * 1.5, 0);
                 bodyPath.quadraticCurveTo(-this.size * 0.7, this.size * 0.9, 0, 0);
 
-                // REVERTED: Correct, shorter tail path
                 const tailPath = new Path2D();
                 tailPath.moveTo(-this.size * 1.5, 0);
                 tailPath.quadraticCurveTo(-this.size * 1.7, -this.size * 0.5, -this.size * 1.9, -this.size * 0.4);
@@ -612,7 +608,53 @@
         }
         for (let i = 0; i < numBubbles; i++) bubbles.push(new Bubble());
         
+        // --- Treasure Chest Bubbles ---
+        let treasureBubbles = [];
+        const numTreasureBubbles = 7; 
+        class TreasureBubble extends Bubble {
+            constructor() {
+                super();
+            }
+            reset() {
+                const chestX = canvas.width * 0.2;
+                this.x = chestX + (Math.random() - 0.5) * 60;
+                this.y = canvas.height - 110 + (Math.random() * 10);
+                this.radius = Math.random() * 8 + 4; 
+                this.speed = Math.random() * 1 + 1;
+            }
+        }
+        for (let i = 0; i < numTreasureBubbles; i++) {
+            treasureBubbles.push(new TreasureBubble());
+        }
+
         // --- Scenery Drawing ---
+        // Generates the treasure pile once to make it static
+        function generateTreasurePile() {
+            const baseX = canvas.width * 0.2;
+            const baseY = canvas.height - 70;
+            const chestWidth = 80;
+            const chestHeight = 40;
+            const treasureColors = ['#FFD700', '#C0C0C0', '#B94E48', '#007FFF'];
+            
+            treasurePile = []; // Clear previous pile
+            for (let i = 0; i < 400; i++) {
+                const pileFactor = 1 - Math.sqrt(i / 400); // Create a more mounded shape
+                const coin = {
+                    x: baseX + (Math.random() - 0.5) * (chestWidth * 0.9 * pileFactor),
+                    y: (baseY - chestHeight) - (Math.random() * 25 * (1 - pileFactor)),
+                    radius: Math.random() * 2 + 1, // Smaller coins
+                    color: treasureColors[Math.floor(Math.random() * treasureColors.length)]
+                };
+                treasurePile.push(coin);
+            }
+        }
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            generateTreasurePile(); // Regenerate treasure for new size
+        });
+
         function drawSettingsIcon(x, y, size) {
             ctx.save();
             ctx.translate(x, y);
@@ -675,36 +717,101 @@
         }
 
         function drawCastle() {
-            ctx.fillStyle = '#8a8a8a';
-            ctx.strokeStyle = '#5a5a5a';
-            ctx.lineWidth = 3;
-            const baseX = canvas.width * 0.75, baseY = canvas.height - 70;
-            ctx.fillRect(baseX - 50, baseY - 100, 100, 100);
-            ctx.strokeRect(baseX - 50, baseY - 100, 100, 100);
+            const baseX = canvas.width * 0.75;
+            const baseY = canvas.height - 70; // Bottom of the castle sits here
+            const scale = 1.5; // Scale factor
+
+            // Colors
+            const mainColor = '#9E9E9E'; // Lighter gray for walls
+            const accentColor = '#616161'; // Darker gray for details/outlines
+            const roofColor = '#0077be'; // Blue to match the water theme
+
+            ctx.strokeStyle = accentColor;
+            ctx.lineWidth = 2 * scale;
+
+            // --- Main Castle Structure ---
+            const mainWidth = 100 * scale;
+            const mainHeight = 80 * scale;
+            
+            // --- Central Keep (taller part) ---
+            const keepWidth = 50 * scale;
+            const keepHeight = 120 * scale;
+            ctx.fillStyle = mainColor;
+            ctx.fillRect(baseX - keepWidth / 2, baseY - keepHeight, keepWidth, keepHeight);
+            ctx.strokeRect(baseX - keepWidth / 2, baseY - keepHeight, keepWidth, keepHeight);
+            
+            // --- Side Walls ---
+            const wallWidth = 60 * scale;
+            const wallHeight = 70 * scale;
+            // Left Wall
+            ctx.fillRect(baseX - keepWidth / 2 - wallWidth, baseY - wallHeight, wallWidth, wallHeight);
+            ctx.strokeRect(baseX - keepWidth / 2 - wallWidth, baseY - wallHeight, wallWidth, wallHeight);
+            // Right Wall
+            ctx.fillRect(baseX + keepWidth / 2, baseY - wallHeight, wallWidth, wallHeight);
+            ctx.strokeRect(baseX + keepWidth / 2, baseY - wallHeight, wallWidth, wallHeight);
+
+            // --- Crenellations (Battlements) ---
+            ctx.fillStyle = mainColor;
+            const crenelWidth = 10 * scale;
+            const crenelHeight = 10 * scale;
+            // Keep crenellations
+            for (let i = 0; i < 4; i++) {
+                ctx.fillRect(baseX - keepWidth / 2 + (i * (crenelWidth + 3*scale)) + (2 * scale), baseY - keepHeight - crenelHeight, crenelWidth, crenelHeight);
+            }
+             // Left wall crenellations
+            for (let i = 0; i < 4; i++) {
+                ctx.fillRect(baseX - keepWidth / 2 - wallWidth + (i * (crenelWidth + 4*scale)), baseY - wallHeight - crenelHeight, crenelWidth, crenelHeight);
+            }
+            // Right wall crenellations
+             for (let i = 0; i < 4; i++) {
+                ctx.fillRect(baseX + keepWidth/2 + (i * (crenelWidth + 4*scale)), baseY - wallHeight - crenelHeight, crenelWidth, crenelHeight);
+            }
+
+            // --- Central Tower Roof ---
+            ctx.fillStyle = roofColor;
             ctx.beginPath();
-            ctx.moveTo(baseX - 60, baseY - 100);
-            ctx.lineTo(baseX, baseY - 150);
-            ctx.lineTo(baseX + 60, baseY - 100);
+            ctx.moveTo(baseX - keepWidth / 2, baseY - keepHeight);
+            ctx.lineTo(baseX, baseY - keepHeight - (50 * scale));
+            ctx.lineTo(baseX + keepWidth / 2, baseY - keepHeight);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
-            ctx.fillStyle = '#5a5a5a';
-            ctx.fillRect(baseX - 15, baseY - 30, 30, 30);
+
+            // --- Arched Gate ---
+            ctx.fillStyle = accentColor;
+            const gateWidth = 30 * scale;
+            const gateHeight = 40 * scale;
+            ctx.beginPath();
+            ctx.moveTo(baseX - gateWidth / 2, baseY); // Bottom-left
+            ctx.lineTo(baseX - gateWidth / 2, baseY - (gateHeight * 0.6)); // Up to arch start
+            ctx.quadraticCurveTo(baseX, baseY - gateHeight, baseX + gateWidth / 2, baseY - (gateHeight * 0.6)); // Arch
+            ctx.lineTo(baseX + gateWidth / 2, baseY); // Down to bottom-right
+            ctx.closePath();
+            ctx.fill();
         }
 
         function drawTreasureChest() {
+            const baseX = canvas.width * 0.2;
+            const baseY = canvas.height - 70;
+            const chestWidth = 80;
+            const chestHeight = 40;
+
+            // Draw the chest base first
             ctx.fillStyle = '#8B4513';
             ctx.strokeStyle = '#5a2d0c';
             ctx.lineWidth = 4;
-            const baseX = canvas.width * 0.2, baseY = canvas.height - 70;
-            ctx.fillRect(baseX - 40, baseY - 30, 80, 40);
-            ctx.strokeRect(baseX - 40, baseY - 30, 80, 40);
-            ctx.beginPath();
-            ctx.moveTo(baseX - 40, baseY - 30);
-            ctx.quadraticCurveTo(baseX, baseY - 70, baseX + 40, baseY - 30);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
+            ctx.fillRect(baseX - chestWidth / 2, baseY - chestHeight, chestWidth, chestHeight);
+
+            // Draw the static, pre-generated treasure pile
+            treasurePile.forEach(coin => {
+                ctx.beginPath();
+                ctx.fillStyle = coin.color;
+                ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw the chest outline over the treasure, so it looks like it's inside
+            ctx.strokeRect(baseX - chestWidth / 2, baseY - chestHeight, chestWidth, chestHeight);
         }
 
         function drawRocks() {
@@ -757,6 +864,8 @@
                 const swatch = document.createElement('div');
                 swatch.className = 'color-swatch';
                 swatch.style.backgroundColor = color;
+                // Use a data attribute for reliable color comparison
+                swatch.dataset.color = color;
                 swatch.addEventListener('click', () => {
                     if (fish.foodEaten >= requirement) {
                         fish[part] = color;
@@ -771,11 +880,12 @@
 
         function updateSelectedSwatchUI() {
             document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-            const outlineSwatch = [...document.getElementById('outlineColorSwatches').children].find(s => s.style.backgroundColor === fish.outlineColor);
+            // Compare against the data attribute instead of style.backgroundColor
+            const outlineSwatch = [...document.getElementById('outlineColorSwatches').children].find(s => s.dataset.color === fish.outlineColor);
             if(outlineSwatch) outlineSwatch.classList.add('selected');
-            const stripesSwatch = [...document.getElementById('stripesColorSwatches').children].find(s => s.style.backgroundColor === fish.stripesColor);
+            const stripesSwatch = [...document.getElementById('stripesColorSwatches').children].find(s => s.dataset.color === fish.stripesColor);
             if(stripesSwatch) stripesSwatch.classList.add('selected');
-            const bodySwatch = [...document.getElementById('bodyColorSwatches').children].find(s => s.style.backgroundColor === fish.bodyColor);
+            const bodySwatch = [...document.getElementById('bodyColorSwatches').children].find(s => s.dataset.color === fish.bodyColor);
             if(bodySwatch) bodySwatch.classList.add('selected');
         }
 
@@ -830,18 +940,20 @@
             drawRocks();
             drawPlants();
             if (foodBubble.active) { foodBubble.update(); foodBubble.draw(); }
+            
             bubbles.forEach(bubble => { bubble.update(); bubble.draw(); });
+            treasureBubbles.forEach(bubble => { bubble.update(); bubble.draw(); });
+            
             fish.update();
             fish.draw();
             drawUI();
         }
 
         // Start animation and food spawning
+        generateTreasurePile(); // Initial generation of static treasure
         scheduleNextFoodBubble();
         animate();
     </script>
 </body>
 </html>
-
-
 
