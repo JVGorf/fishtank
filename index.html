@@ -743,14 +743,14 @@
             const mainWidth = 100 * scale;
             const mainHeight = 80 * scale;
             
-            // --- Central Keep (taller part) ---
+            // --- Central Keep (taller part) THIS EDIT OR NAW---
             const keepWidth = 50 * scale;
             const keepHeight = 120 * scale;
             ctx.fillStyle = mainColor;
             ctx.fillRect(baseX - keepWidth / 2, baseY - keepHeight, keepWidth, keepHeight);
             ctx.strokeRect(baseX - keepWidth / 2, baseY - keepHeight, keepWidth, keepHeight);
             
-            // --- Side Walls ---
+            // --- Side Walls THIS ONE THEN? ---
             const wallWidth = 60 * scale;
             const wallHeight = 70 * scale;
             // Left Wall
@@ -770,7 +770,7 @@
             }
              // Left wall crenellations
             for (let i = 0; i < 4; i++) {
-                ctx.fillRect(baseX - keepWidth / 2.4 - wallWidth + (i * (crenelWidth + 4*scale)), baseY - wallHeight - crenelHeight, crenelWidth, crenelHeight);
+                ctx.fillRect(baseX - keepWidth / 2.3 - wallWidth + (i * (crenelWidth + 4*scale)), baseY - wallHeight - crenelHeight, crenelWidth, crenelHeight);
             }
             // Right wall crenellations
              for (let i = 0; i < 4; i++) {
@@ -845,9 +845,11 @@
         function drawPlants() {
             ctx.strokeStyle = '#006400';
             ctx.lineWidth = 4;
-            drawSeaweed(canvas.width * 0.3, canvas.height - 70, 180, 20, 0.05);
-            drawSeaweed(canvas.width * 0.3 + 20, canvas.height - 70, 160, 15, 0.06);
-            drawSeaweed(canvas.width * 0.9, canvas.height - 70, 200, 25, -0.04);
+            drawSeaweed(canvas.width * 0.3, canvas.height - 70, 200, 20, 0.05);
+            drawSeaweed(canvas.width * 0.3 + 20, canvas.height - 70, 180, 15, 0.06);
+            drawSeaweed(canvas.width * 0.3 + 30, canvas.height - 70, 160, 15, 0.04);
+            drawSeaweed(canvas.width * 0.9, canvas.height - 70, 220, 25, -0.04);
+            drawSeaweed(canvas.width * 0.9 + 20, canvas.height - 70, 180, 25, -0.05);
         }
 
         function drawSeaweed(x, y, height, width, sway) {
