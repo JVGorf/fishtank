@@ -410,21 +410,6 @@
                 ctx.stroke(bodyPath);
                 ctx.stroke(tailPath);
                 
-                // Fin is still commented out as requested
-                /*
-                const finPath = new Path2D();
-                const finTopY = -this.size * 0.3, finBackX = -this.size * 1.0;
-                const finSwayAmount = Math.sin(Date.now() * 0.005) * this.size * 0.05;
-                finPath.moveTo(finBackX, finTopY);
-                finPath.quadraticCurveTo(finBackX + this.size * 0.4 + finSwayAmount, finTopY + this.size * 0.2, finBackX, finTopY + this.size * 0.6);
-                finPath.closePath();
-                ctx.fillStyle = this.bodyColor;
-                ctx.fill(finPath);
-                ctx.strokeStyle = this.outlineColor;
-                ctx.lineWidth = this.size * 0.06;
-                ctx.stroke(finPath);
-                */
-                
                 // Draw Eye
                 const eyeRadius = this.size * 0.2, pupilRadius = this.size * 0.1;
                 ctx.fillStyle = 'white';
@@ -739,18 +724,14 @@
             ctx.strokeStyle = accentColor;
             ctx.lineWidth = 2 * scale;
 
-            // --- Main Castle Structure ---
-            const mainWidth = 100 * scale;
-            const mainHeight = 80 * scale;
-            
-            // --- Central Keep (taller part) THIS EDIT OR NAW---
+            // --- Central Keep (taller part) ---
             const keepWidth = 50 * scale;
             const keepHeight = 120 * scale;
             ctx.fillStyle = mainColor;
             ctx.fillRect(baseX - keepWidth / 2, baseY - keepHeight, keepWidth, keepHeight);
             ctx.strokeRect(baseX - keepWidth / 2, baseY - keepHeight, keepWidth, keepHeight);
             
-            // --- Side Walls THIS ONE THEN? ---
+            // --- Side Walls ---
             const wallWidth = 60 * scale;
             const wallHeight = 70 * scale;
             // Left Wall
@@ -764,25 +745,23 @@
             ctx.fillStyle = mainColor;
             const crenelWidth = 10 * scale;
             const crenelHeight = 10 * scale;
-            // Keep crenellations
-            for (let i = 0; i < 4; i++) {
-                ctx.fillRect(baseX - keepWidth / 2 + (i * (crenelWidth + 3*scale)) + (2 * scale), baseY - keepHeight - crenelHeight, crenelWidth, crenelHeight);
-            }
+            
              // Left wall crenellations
             for (let i = 0; i < 4; i++) {
                 ctx.fillRect(baseX - keepWidth / 2.3 - wallWidth + (i * (crenelWidth + 4*scale)), baseY - wallHeight - crenelHeight, crenelWidth, crenelHeight);
             }
             // Right wall crenellations
              for (let i = 0; i < 4; i++) {
-                ctx.fillRect(baseX + keepWidth / 1.7 + (i * (crenelWidth + 4*scale)), baseY - wallHeight - crenelHeight, crenelWidth, crenelHeight);
+                ctx.fillRect(baseX + keepWidth/ 1.7 + (i * (crenelWidth + 4*scale)), baseY - wallHeight - crenelHeight, crenelWidth, crenelHeight);
             }
 
             // --- Central Tower Roof ---
+            // Draw roof after keep outline to cover any overlap properly
             ctx.fillStyle = roofColor;
             ctx.beginPath();
-            ctx.moveTo(baseX - keepWidth / 2, baseY - keepHeight);
+            ctx.moveTo(baseX - keepWidth / 2 - (5 * scale), baseY - keepHeight); // Start slightly wider
             ctx.lineTo(baseX, baseY - keepHeight - (50 * scale));
-            ctx.lineTo(baseX + keepWidth / 2, baseY - keepHeight);
+            ctx.lineTo(baseX + keepWidth / 2 + (5 * scale), baseY - keepHeight); // End slightly wider
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
@@ -968,4 +947,3 @@
     </script>
 </body>
 </html>
-
