@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,7 +19,6 @@
 
   gtag('config', 'G-VCPEFHSKPY');
 </script>
-<!-- End Google tag (gtag.js) -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Virtual Fish Tank</title>
@@ -240,7 +238,9 @@
         const STRIPES_REQ = 100;
         const BODY_REQ = 150;
         const colorOptions = ['#ff8c00', '#000000', '#ffffff', '#dc143c', '#ffd700', '#00ced1', '#4169e1', '#9370db', '#32cd32', '#ff4500', '#FFC0CB', '#A52A2A', '#808080', '#ADD8E6', '#FF00FF', '#00FFFF', '#008000', '#4B0082'];
-        let treasurePile = []; // Array to hold the static treasure coins
+        let treasurePile = [];
+        let allFish = []; // Will hold all fish objects
+        let playerFish; // A direct reference to the player's fish
 
         // Set initial canvas size
         canvas.width = window.innerWidth;
@@ -292,12 +292,12 @@
         // --- Fish Data Persistence ---
         function saveFishData() {
             const data = {
-                name: fish.name,
-                foodEaten: fish.foodEaten,
+                name: playerFish.name,
+                foodEaten: playerFish.foodEaten,
                 volume: bgMusic.volume,
-                outlineColor: fish.outlineColor,
-                stripesColor: fish.stripesColor,
-                bodyColor: fish.bodyColor
+                outlineColor: playerFish.outlineColor,
+                stripesColor: playerFish.stripesColor,
+                bodyColor: playerFish.bodyColor
             };
             setCookie('fishData', JSON.stringify(data), 3650);
         }
@@ -307,12 +307,12 @@
             if (savedData) {
                 try {
                     const data = JSON.parse(savedData);
-                    fish.name = data.name || assignNewFishName();
-                    fish.foodEaten = data.foodEaten || 0;
+                    playerFish.name = data.name || assignNewFishName();
+                    playerFish.foodEaten = data.foodEaten || 0;
                     bgMusic.volume = (typeof data.volume === 'number') ? data.volume : 0.5;
-                    fish.outlineColor = data.outlineColor || '#000000';
-                    fish.stripesColor = data.stripesColor || '#ffffff';
-                    fish.bodyColor = data.bodyColor || '#ff8c00';
+                    playerFish.outlineColor = data.outlineColor || '#000000';
+                    playerFish.stripesColor = data.stripesColor || '#ffffff';
+                    playerFish.bodyColor = data.bodyColor || '#ff8c00';
                 } catch (e) {
                     console.error("Could not parse fish data from cookie.", e);
                     assignNewFish();
@@ -328,32 +328,58 @@
         }
 
         function assignNewFish() {
-            fish.name = assignNewFishName();
-            fish.foodEaten = 0;
+            playerFish.name = assignNewFishName();
+            playerFish.foodEaten = 0;
             bgMusic.volume = 0.5;
-            fish.outlineColor = '#000000';
-            fish.stripesColor = '#ffffff';
-            fish.bodyColor = '#ff8c00';
+            playerFish.outlineColor = '#000000';
+            playerFish.stripesColor = '#ffffff';
+            playerFish.bodyColor = '#ff8c00';
             saveFishData();
         }
 
+        // --- Fish Class ---
+        class Fish {
+            constructor(isPlayer = false) {
+                this.isPlayer = isPlayer;
+                // Start on either the left or right side of the screen
+                const startSide = Math.random() < 0.5 ? -50 : canvas.width + 50;
+                this.x = startSide;
+                this.y = Math.random() * (canvas.height - 200) + 100;
 
-        // --- Fish Object ---
-        const fish = {
-            name: '', foodEaten: 0, x: canvas.width / 2, y: canvas.height / 2,
-            size: 25, speed: 1, originalSpeed: 1, 
-            bodyColor: '#ff8c00', stripesColor: '#ffffff', outlineColor: '#000000',
-            direction: 1, angle: 0, currentAngle: 0, state: 'swimming', pauseTimer: 0,
-            pupilOffsetX: 0, pupilOffsetY: 0, pupilTargetX: 0, pupilTargetY: 0, pupilTimer: 120,
-            target: { x: Math.random() * canvas.width, y: Math.random() * (canvas.height - 200) + 50 },
+                this.size = 25;
+                this.speed = 1;
+                this.originalSpeed = 1;
+                this.direction = (startSide < 0) ? 1 : -1; // Face towards the center
+                this.angle = 0;
+                this.currentAngle = 0;
+                this.state = 'swimming';
+                this.pauseTimer = 0;
+                this.pupilOffsetX = 0;
+                this.pupilOffsetY = 0;
+                this.pupilTargetX = 0;
+                this.pupilTargetY = 0;
+                this.pupilTimer = 120;
+                this.target = { x: Math.random() * canvas.width, y: Math.random() * (canvas.height - 200) + 50 };
 
-            draw: function() {
+                if (isPlayer) {
+                    this.name = '';
+                    this.foodEaten = 0;
+                    this.bodyColor = '#ff8c00';
+                    this.stripesColor = '#ffffff';
+                    this.outlineColor = '#000000';
+                } else {
+                    this.bodyColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
+                    this.stripesColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
+                    this.outlineColor = '#000000';
+                }
+            }
+
+            draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.scale(this.direction, 1);
                 ctx.rotate(this.currentAngle);
 
-                // Define paths for all fish parts
                 const bodyPath = new Path2D();
                 bodyPath.moveTo(0, 0);
                 bodyPath.quadraticCurveTo(-this.size * 0.7, -this.size * 0.9, -this.size * 1.5, 0);
@@ -366,11 +392,9 @@
                 tailPath.quadraticCurveTo(-this.size * 1.7, this.size * 0.5, -this.size * 1.5, 0);
                 tailPath.closePath();
                 
-                // Create a combined path of body and tail for clipping stripes
                 const fullFishPath = new Path2D(bodyPath);
                 fullFishPath.addPath(tailPath);
 
-                // Define stripe paths
                 const stripe1Path = new Path2D();
                 stripe1Path.moveTo(-this.size * 0.4, -this.size * 0.65);
                 stripe1Path.quadraticCurveTo(-this.size * 0.2, 0, -this.size * 0.4, this.size * 0.65);
@@ -392,12 +416,10 @@
                 stripe3Path.quadraticCurveTo(-this.size * 1.5, 0, -this.size * 1.55, -this.size * 0.4);
                 stripe3Path.closePath();
 
-                // Draw Body and Tail (main color)
                 ctx.fillStyle = this.bodyColor;
                 ctx.fill(bodyPath);
                 ctx.fill(tailPath);
 
-                // Helper function to draw a stripe
                 const drawStripe = (path) => {
                     ctx.fillStyle = this.stripesColor;
                     ctx.fill(path);
@@ -406,7 +428,6 @@
                     ctx.stroke(path);
                 };
                 
-                // Use clipping to keep stripes within the full fish shape
                 ctx.save();
                 ctx.clip(fullFishPath);
                 drawStripe(stripe1Path);
@@ -414,13 +435,11 @@
                 drawStripe(stripe3Path);
                 ctx.restore();
 
-                // Draw Body and Tail Outlines
                 ctx.strokeStyle = this.outlineColor;
                 ctx.lineWidth = this.size * 0.06;
                 ctx.stroke(bodyPath);
                 ctx.stroke(tailPath);
                 
-                // Draw Eye
                 const eyeRadius = this.size * 0.2, pupilRadius = this.size * 0.1;
                 ctx.fillStyle = 'white';
                 ctx.beginPath();
@@ -435,17 +454,19 @@
                 ctx.fill();
 
                 ctx.restore();
-            },
+            }
 
-            update: function() {
-                // State transitions
-                if (foodBubble.active && this.state !== 'eating' && foodBubble.y < canvas.height - 120) {
-                    this.state = 'eating';
-                    this.target = foodBubble;
-                    this.speed = this.originalSpeed * 2;
-                } else if (this.state === 'eating' && !foodBubble.active) {
-                    this.speed = this.originalSpeed;
-                    this.setNewTarget();
+            update() {
+                // State transitions (Player fish only)
+                if (this.isPlayer) {
+                    if (foodBubble.active && this.state !== 'eating' && foodBubble.y < canvas.height - 120) {
+                        this.state = 'eating';
+                        this.target = foodBubble;
+                        this.speed = this.originalSpeed * 2;
+                    } else if (this.state === 'eating' && !foodBubble.active) {
+                        this.speed = this.originalSpeed;
+                        this.setNewTarget();
+                    }
                 }
 
                 // Handle actions based on state
@@ -463,11 +484,18 @@
 
                     if (dist < this.size + 5) { // Arrived at target
                         this.angle = 0;
-                        if (this.state === 'eating') {
+                        if (this.isPlayer && this.state === 'eating') {
                             foodBubble.active = false;
                             this.foodEaten++;
                             saveFishData();
                             this.speed = this.originalSpeed;
+                            
+                            // Check if a new fish should spawn
+                            const requiredFishCount = 1 + Math.floor(playerFish.foodEaten / 50);
+                            if (allFish.length < requiredFishCount) {
+                                allFish.push(new Fish(false));
+                            }
+                            
                             this.setNewTarget();
                         } else if (this.state === 'investigating') {
                             this.state = 'inspecting';
@@ -494,7 +522,7 @@
 
                 // Pupil animation
                 const maxOffset = this.size * 0.1;
-                if (foodBubble.active) {
+                if (this.isPlayer && foodBubble.active) {
                     const foodDX = foodBubble.x - this.x, foodDY = foodBubble.y - this.y;
                     const foodDX_rel = foodDX * this.direction;
                     const dist = Math.sqrt(foodDX_rel * foodDX_rel + foodDY * foodDY);
@@ -524,18 +552,18 @@
                 }
                 this.pupilOffsetX += (this.pupilTargetX - this.pupilOffsetX) * 0.08;
                 this.pupilOffsetY += (this.pupilTargetY - this.pupilOffsetY) * 0.08;
-            },
+            }
             
-            setNewTarget: function() {
+            setNewTarget() {
                 this.state = 'swimming';
                 const sandLevel = canvas.height - 100;
                 this.target = {
                     x: Math.random() * (canvas.width - 100) + 50,
                     y: Math.random() * (sandLevel - 80) + 50
                 };
-            },
+            }
 
-            setInvestigationTarget: function() {
+            setInvestigationTarget() {
                 this.state = 'investigating';
                 const points = [
                     { x: canvas.width * 0.75, y: canvas.height - 150 }, // Castle
@@ -543,22 +571,45 @@
                 ];
                 this.target = points[Math.floor(Math.random() * points.length)];
             }
-        };
-
-        // Load data
+        }
+        
+        // Initialize Fish
+        playerFish = new Fish(true);
+        allFish.push(playerFish);
         loadFishData();
+
+        // Spawn initial set of non-player fish based on saved score
+        const initialFishCount = 1 + Math.floor(playerFish.foodEaten / 50);
+        for(let i = 1; i < initialFishCount; i++) {
+            allFish.push(new Fish(false));
+        }
+
 
         // --- Food Bubble & Bubbles Logic ---
         const foodBubble = {
             x: -100, y: -100, radius: 10, speed: 1, active: false,
             color: 'rgba(255, 255, 0, 0.7)', borderColor: 'rgba(255, 255, 0, 0.9)',
-            spawn: function() {
+            direction: -1, // -1 for rising, 1 for falling
+
+            spawn: function() { // Auto-spawn from bottom
                 this.x = Math.random() * canvas.width;
                 this.y = canvas.height - 90;
                 this.radius = Math.random() * 5 + 2;
                 this.speed = Math.random() * 0.5 + 0.8;
+                this.direction = -1;
                 this.active = true;
             },
+            
+            spawnFromTop: function() { // Manual spawn from top
+                if (this.active) return; // Don't spawn if one is already active
+                this.x = Math.random() * canvas.width;
+                this.y = -20; // Start off-screen top
+                this.radius = Math.random() * 5 + 2;
+                this.speed = Math.random() * 0.5 + 0.8;
+                this.direction = 1;
+                this.active = true;
+            },
+
             draw: function() {
                 if (!this.active) return;
                 ctx.beginPath();
@@ -569,10 +620,17 @@
                 ctx.fill();
                 ctx.stroke();
             },
+
             update: function() {
                 if (!this.active) return;
-                this.y -= this.speed;
-                if (this.y < -this.radius) this.active = false;
+                this.y += this.speed * this.direction;
+
+                // Check boundaries
+                if (this.direction === -1 && this.y < -this.radius) { // Rising off top
+                    this.active = false;
+                } else if (this.direction === 1 && this.y > canvas.height + this.radius) { // Falling off bottom
+                    this.active = false;
+                }
             }
         };
 
@@ -678,16 +736,16 @@
 
             const xStart = settingsIcon.x + 35;
             const yStart = 20;
-            const fishNameText = fish.name;
-            const scoreText = ` Food Eaten: ${fish.foodEaten}`;
+            const fishNameText = playerFish.name;
+            const scoreText = ` Food Eaten: ${playerFish.foodEaten}`;
 
             ctx.font = 'bold 22px Arial';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
 
             // --- Draw Fish Name with custom colors ---
-            ctx.strokeStyle = fish.outlineColor;
-            ctx.fillStyle = fish.bodyColor;
+            ctx.strokeStyle = playerFish.outlineColor;
+            ctx.fillStyle = playerFish.bodyColor;
             ctx.lineWidth = 4;
             ctx.strokeText(fishNameText, xStart, yStart);
             ctx.fillText(fishNameText, xStart, yStart);
@@ -723,68 +781,57 @@
 
         function drawCastle() {
             const baseX = canvas.width * 0.75;
-            const baseY = canvas.height - 70; // Bottom of the castle sits here
-            const scale = 1.5; // Scale factor
+            const baseY = canvas.height - 70;
+            const scale = 1.5;
 
-            // Colors
-            const mainColor = '#9E9E9E'; // Lighter gray for walls
-            const accentColor = '#616161'; // Darker gray for details/outlines
-            const roofColor = '#0077be'; // Blue to match the water theme
+            const mainColor = '#9E9E9E';
+            const accentColor = '#616161';
+            const roofColor = '#0077be';
 
             ctx.strokeStyle = accentColor;
             ctx.lineWidth = 2 * scale;
 
-            // --- Central Keep (taller part) ---
             const keepWidth = 50 * scale;
             const keepHeight = 120 * scale;
             ctx.fillStyle = mainColor;
             ctx.fillRect(baseX - keepWidth / 2, baseY - keepHeight, keepWidth, keepHeight);
             ctx.strokeRect(baseX - keepWidth / 2, baseY - keepHeight, keepWidth, keepHeight);
             
-            // --- Side Walls ---
             const wallWidth = 60 * scale;
             const wallHeight = 70 * scale;
-            // Left Wall
             ctx.fillRect(baseX - keepWidth / 2 - wallWidth, baseY - wallHeight, wallWidth, wallHeight);
             ctx.strokeRect(baseX - keepWidth / 2 - wallWidth, baseY - wallHeight, wallWidth, wallHeight);
-            // Right Wall
             ctx.fillRect(baseX + keepWidth / 2, baseY - wallHeight, wallWidth, wallHeight);
             ctx.strokeRect(baseX + keepWidth / 2, baseY - wallHeight, wallWidth, wallHeight);
 
-            // --- Crenellations (Battlements) ---
             ctx.fillStyle = mainColor;
             const crenelWidth = 10 * scale;
             const crenelHeight = 10 * scale;
             
-             // Left wall crenellations
             for (let i = 0; i < 4; i++) {
                 ctx.fillRect(baseX - keepWidth / 2.3 - wallWidth + (i * (crenelWidth + 4*scale)), baseY - wallHeight - crenelHeight, crenelWidth, crenelHeight);
             }
-            // Right wall crenellations
-             for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 4; i++) {
                 ctx.fillRect(baseX + keepWidth/ 1.7 + (i * (crenelWidth + 4*scale)), baseY - wallHeight - crenelHeight, crenelWidth, crenelHeight);
             }
 
-            // --- Central Tower Roof ---
-            // Draw roof after keep outline to cover any overlap properly
             ctx.fillStyle = roofColor;
             ctx.beginPath();
-            ctx.moveTo(baseX - keepWidth / 2 - (5 * scale), baseY - keepHeight); // Start slightly wider
+            ctx.moveTo(baseX - keepWidth / 2 - (5 * scale), baseY - keepHeight);
             ctx.lineTo(baseX, baseY - keepHeight - (50 * scale));
-            ctx.lineTo(baseX + keepWidth / 2 + (5 * scale), baseY - keepHeight); // End slightly wider
+            ctx.lineTo(baseX + keepWidth / 2 + (5 * scale), baseY - keepHeight);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
-            // --- Arched Gate ---
             ctx.fillStyle = accentColor;
             const gateWidth = 30 * scale;
             const gateHeight = 40 * scale;
             ctx.beginPath();
-            ctx.moveTo(baseX - gateWidth / 2, baseY); // Bottom-left
-            ctx.lineTo(baseX - gateWidth / 2, baseY - (gateHeight * 0.6)); // Up to arch start
-            ctx.quadraticCurveTo(baseX, baseY - gateHeight, baseX + gateWidth / 2, baseY - (gateHeight * 0.6)); // Arch
-            ctx.lineTo(baseX + gateWidth / 2, baseY); // Down to bottom-right
+            ctx.moveTo(baseX - gateWidth / 2, baseY);
+            ctx.lineTo(baseX - gateWidth / 2, baseY - (gateHeight * 0.6));
+            ctx.quadraticCurveTo(baseX, baseY - gateHeight, baseX + gateWidth / 2, baseY - (gateHeight * 0.6));
+            ctx.lineTo(baseX + gateWidth / 2, baseY);
             ctx.closePath();
             ctx.fill();
         }
@@ -795,13 +842,11 @@
             const chestWidth = 80;
             const chestHeight = 40;
 
-            // Draw the chest base first
             ctx.fillStyle = '#8B4513';
             ctx.strokeStyle = '#5a2d0c';
             ctx.lineWidth = 4;
             ctx.fillRect(baseX - chestWidth / 2, baseY - chestHeight, chestWidth, chestHeight);
 
-            // Draw the static, pre-generated treasure pile
             treasurePile.forEach(coin => {
                 ctx.beginPath();
                 ctx.fillStyle = coin.color;
@@ -809,38 +854,31 @@
                 ctx.fill();
             });
 
-            // Draw the chest outline over the treasure, so it looks like it's inside
             ctx.strokeRect(baseX - chestWidth / 2, baseY - chestHeight, chestWidth, chestHeight);
         }
 
         function drawRocks() {
             ctx.fillStyle = '#696969';
             ctx.strokeStyle = '#404040';
-            ctx.lineWidth = 1.5; // Matching fish body outline width
+            ctx.lineWidth = 1.5;
 
-            // Rock 1
             ctx.beginPath();
-            ctx.moveTo(100, canvas.height - 70); // Start
-            // Jagged top (3 line segments)
+            ctx.moveTo(100, canvas.height - 70);
             ctx.lineTo(110, canvas.height - 95);
             ctx.lineTo(135, canvas.height - 90);
             ctx.lineTo(150, canvas.height - 75);
-            // Jagged bottom (2 line segments)
             ctx.lineTo(125, canvas.height - 60);
-            ctx.closePath(); // Draws final segment back to start
+            ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
-            // Rock 2
             ctx.beginPath();
-            ctx.moveTo(canvas.width - 150, canvas.height - 80); // Start
-            // Jagged top (3 line segments)
+            ctx.moveTo(canvas.width - 150, canvas.height - 80);
             ctx.lineTo(canvas.width - 140, canvas.height - 105);
             ctx.lineTo(canvas.width - 115, canvas.height - 100);
             ctx.lineTo(canvas.width - 100, canvas.height - 85);
-            // Jagged bottom (2 line segments)
             ctx.lineTo(canvas.width - 125, canvas.height - 70);
-            ctx.closePath(); // Draws final segment back to start
+            ctx.closePath();
             ctx.fill();
             ctx.stroke();
         }
@@ -856,13 +894,36 @@
         }
 
         function drawSeaweed(x, y, height, width, sway) {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
+            const stalkPath = new Path2D();
+            stalkPath.moveTo(x, y);
+
+            const leaves = [];
+
             for (let i = 0; i < height; i++) {
                 let swayX = x + Math.sin(i * sway + Date.now() * 0.001) * (width * (1 - i / height));
-                ctx.lineTo(swayX, y - i);
+                stalkPath.lineTo(swayX, y - i);
+
+                if (i > 10 && i % 15 === 0) { 
+                    leaves.push({ x: swayX, y: y - i, i: i });
+                }
             }
-            ctx.stroke();
+
+            ctx.strokeStyle = '#006400';
+            ctx.lineWidth = 4;
+            ctx.stroke(stalkPath);
+
+            ctx.fillStyle = '#008000';
+            leaves.forEach(leaf => {
+                const leafLength = 12 * (1 - leaf.i / height);
+                const leafWidth = 5 * (1 - leaf.i / height);
+                const side = ((leaf.i / 15) % 2 === 0) ? 1 : -1;
+
+                ctx.beginPath();
+                ctx.moveTo(leaf.x, leaf.y);
+                ctx.quadraticCurveTo(leaf.x + side * leafLength * 0.6, leaf.y - leafWidth, leaf.x + side * leafLength, leaf.y - leafWidth * 0.2);
+                ctx.quadraticCurveTo(leaf.x + side * leafLength * 0.6, leaf.y + leafWidth, leaf.x, leaf.y);
+                ctx.fill();
+            });
         }
 
         // --- Options Panel Logic ---
@@ -879,11 +940,10 @@
                 const swatch = document.createElement('div');
                 swatch.className = 'color-swatch';
                 swatch.style.backgroundColor = color;
-                // Use a data attribute for reliable color comparison
                 swatch.dataset.color = color;
                 swatch.addEventListener('click', () => {
-                    if (fish.foodEaten >= requirement) {
-                        fish[part] = color;
+                    if (playerFish.foodEaten >= requirement) {
+                        playerFish[part] = color;
                         updateSelectedSwatchUI();
                     } else {
                         showLockedMessage(requirement);
@@ -895,25 +955,24 @@
 
         function updateSelectedSwatchUI() {
             document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-            // Compare against the data attribute instead of style.backgroundColor
-            const outlineSwatch = [...document.getElementById('outlineColorSwatches').children].find(s => s.dataset.color === fish.outlineColor);
+            const outlineSwatch = [...document.getElementById('outlineColorSwatches').children].find(s => s.dataset.color === playerFish.outlineColor);
             if(outlineSwatch) outlineSwatch.classList.add('selected');
-            const stripesSwatch = [...document.getElementById('stripesColorSwatches').children].find(s => s.dataset.color === fish.stripesColor);
+            const stripesSwatch = [...document.getElementById('stripesColorSwatches').children].find(s => s.dataset.color === playerFish.stripesColor);
             if(stripesSwatch) stripesSwatch.classList.add('selected');
-            const bodySwatch = [...document.getElementById('bodyColorSwatches').children].find(s => s.dataset.color === fish.bodyColor);
+            const bodySwatch = [...document.getElementById('bodyColorSwatches').children].find(s => s.dataset.color === playerFish.bodyColor);
             if(bodySwatch) bodySwatch.classList.add('selected');
         }
 
         function updateOptionsLockState() {
-            document.getElementById('outlineColorSection').classList.toggle('locked', fish.foodEaten < OUTLINE_REQ);
-            document.getElementById('stripesColorSection').classList.toggle('locked', fish.foodEaten < STRIPES_REQ);
-            document.getElementById('bodyColorSection').classList.toggle('locked', fish.foodEaten < BODY_REQ);
+            document.getElementById('outlineColorSection').classList.toggle('locked', playerFish.foodEaten < OUTLINE_REQ);
+            document.getElementById('stripesColorSection').classList.toggle('locked', playerFish.foodEaten < STRIPES_REQ);
+            document.getElementById('bodyColorSection').classList.toggle('locked', playerFish.foodEaten < BODY_REQ);
         }
 
         function toggleSettingsPanel() {
             isSettingsOpen = !isSettingsOpen;
             if (isSettingsOpen) {
-                fishNameInput.value = fish.name;
+                fishNameInput.value = playerFish.name;
                 volumeSlider.value = bgMusic.volume * 10;
                 volumeValue.textContent = volumeSlider.value;
                 updateOptionsLockState();
@@ -936,10 +995,17 @@
             if (Math.sqrt(dx * dx + dy * dy) < settingsIcon.size) { toggleSettingsPanel(); }
         });
 
+        // Add keyboard listener for feeding
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'f') {
+                foodBubble.spawnFromTop();
+            }
+        });
+
         volumeSlider.addEventListener('input', () => { bgMusic.volume = volumeSlider.value / 10; volumeValue.textContent = volumeSlider.value; });
         saveSettingsBtn.addEventListener('click', () => {
             const newName = fishNameInput.value.trim();
-            if (newName) fish.name = newName.substring(0, 15);
+            if (newName) playerFish.name = newName.substring(0, 15);
             saveFishData();
             toggleSettingsPanel(); 
         });
@@ -959,8 +1025,11 @@
             bubbles.forEach(bubble => { bubble.update(); bubble.draw(); });
             treasureBubbles.forEach(bubble => { bubble.update(); bubble.draw(); });
             
-            fish.update();
-            fish.draw();
+            allFish.forEach(fish => {
+                fish.update();
+                fish.draw();
+            });
+            
             drawUI();
         }
 
@@ -971,3 +1040,4 @@
     </script>
 </body>
 </html>
+
