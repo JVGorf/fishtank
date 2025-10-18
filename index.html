@@ -195,13 +195,17 @@
         <label for="fishNameInput">Fish Name:</label>
         <input type="text" id="fishNameInput" maxlength="15" placeholder="Enter a name">
         
-        <label for="volumeSlider" style="margin-top: 20px;">Volume:</label>
-        <input type="range" id="volumeSlider" min="0" max="10" value="5">
-        <div class="volume-display" id="volumeValue">5</div>
-        
-        <label for="maxAdditionalFishInput" style="margin-top: 20px;">Max additional fish:</label>
+        <label for="maxAdditionalFishInput" style="margin-top: 20px;">Max Additional Fish:</label>
         <input type="range" id="maxAdditionalFishInput" min="0" max="20" value="3">
         <div class="volume-display" id="maxAdditionalFishValue">3</div>
+
+        <label for="volumeSlider" style="margin-top: 20px;">Background Volume:</label>
+        <input type="range" id="volumeSlider" min="0" max="10" value="5">
+        <div class="volume-display" id="volumeValue">5</div>
+
+        <label for="soundEffectsVolumeSlider" style="margin-top: 20px;">Sound Effects Volume:</label>
+        <input type="range" id="soundEffectsVolumeSlider" min="0" max="10" value="5">
+        <div class="volume-display" id="soundEffectsVolumeValue">5</div>
         
         <div id="outlineColorSection" class="color-section">
             <label>Outline Color (Requires 50 Food)</label>
@@ -218,7 +222,7 @@
             <div class="color-swatches" id="bodyColorSwatches"></div>
         </div>
 
-        <label for="soundPromptSlider" style="margin-top: 20px;">Disable sound prompt?</label>
+        <label for="soundPromptSlider" style="margin-top: 20px;">Disable Startup Sound Prompt?</label>
         <input type="range" id="soundPromptSlider" min="0" max="1" value="0">
         <div class="volume-display" id="soundPromptValue">No</div>
 
@@ -235,6 +239,8 @@
         const fishNameInput = document.getElementById('fishNameInput');
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeValue = document.getElementById('volumeValue');
+        const soundEffectsVolumeSlider = document.getElementById('soundEffectsVolumeSlider');
+        const soundEffectsVolumeValue = document.getElementById('soundEffectsVolumeValue');
         const maxAdditionalFishValue = document.getElementById('maxAdditionalFishValue');
         const soundPromptSlider = document.getElementById('soundPromptSlider');
         const soundPromptValue = document.getElementById('soundPromptValue');
@@ -261,6 +267,7 @@
         const bgMusic = new Audio('https://onx.wdfiles.com/local--files/fishtank/JoelFazhari-aquarium-ambience-sounds-10-min-193236.mp3');
         bgMusic.loop = true;
         bgMusic.volume = 0.5;
+        const popSound = new Audio('https://jvgorf.github.io/fishtank/pop-402323-by-Dragon-Studio.mp3');
 
         function hideSoundNotice() {
             if (soundNotice) {
@@ -306,6 +313,7 @@
                 name: playerFish.name,
                 foodEaten: playerFish.foodEaten,
                 volume: bgMusic.volume,
+                soundEffectsVolume: popSound.volume,
                 outlineColor: playerFish.outlineColor,
                 stripesColor: playerFish.stripesColor,
                 bodyColor: playerFish.bodyColor,
@@ -324,6 +332,7 @@
                     playerFish.name = data.name || assignNewFishName();
                     playerFish.foodEaten = data.foodEaten || 0;
                     bgMusic.volume = (typeof data.volume === 'number') ? data.volume : 0.5;
+                    popSound.volume = (typeof data.soundEffectsVolume === 'number') ? data.soundEffectsVolume : 0.5;
                     playerFish.outlineColor = data.outlineColor || '#000000';
                     playerFish.stripesColor = data.stripesColor || '#ffffff';
                     playerFish.bodyColor = data.bodyColor || '#ff8c00';
@@ -382,6 +391,7 @@
             playerFish.name = assignNewFishName();
             playerFish.foodEaten = 0;
             bgMusic.volume = 0.5;
+            popSound.volume = 0.5;
             playerFish.outlineColor = '#000000';
             playerFish.stripesColor = '#ffffff';
             playerFish.bodyColor = '#ff8c00';
@@ -546,6 +556,7 @@
                         if (this.isPlayer && this.state === 'eating') {
                             foodBubble.active = false;
                             this.foodEaten++;
+                            popSound.play();
                             saveFishData();
                             reconcileFish();
                             this.speed = this.originalSpeed;
@@ -1032,6 +1043,7 @@
             if (newName) playerFish.name = newName.substring(0, 15);
             playerFish.maxAdditionalFish = parseInt(maxAdditionalFishInput.value, 10);
             bgMusic.volume = volumeSlider.value / 10;
+            popSound.volume = soundEffectsVolumeSlider.value / 10;
             playerFish.disableSoundPrompt = parseInt(soundPromptSlider.value, 10);
             saveFishData();
             reconcileFish();
@@ -1046,6 +1058,8 @@
                 fishNameInput.value = playerFish.name;
                 volumeSlider.value = bgMusic.volume * 10;
                 volumeValue.textContent = volumeSlider.value;
+                soundEffectsVolumeSlider.value = popSound.volume * 10;
+                soundEffectsVolumeValue.textContent = soundEffectsVolumeSlider.value;
                 maxAdditionalFishInput.value = playerFish.maxAdditionalFish;
                 maxAdditionalFishValue.textContent = playerFish.maxAdditionalFish;
                 soundPromptSlider.value = playerFish.disableSoundPrompt;
@@ -1078,6 +1092,7 @@
         });
 
         volumeSlider.addEventListener('input', () => { bgMusic.volume = volumeSlider.value / 10; volumeValue.textContent = volumeSlider.value; });
+        soundEffectsVolumeSlider.addEventListener('input', () => { popSound.volume = soundEffectsVolumeSlider.value / 10; soundEffectsVolumeValue.textContent = soundEffectsVolumeSlider.value; });
         maxAdditionalFishInput.addEventListener('input', () => { maxAdditionalFishValue.textContent = maxAdditionalFishInput.value; });
         soundPromptSlider.addEventListener('input', () => {
             soundPromptValue.textContent = soundPromptSlider.value == 1 ? 'Yes' : 'No';
