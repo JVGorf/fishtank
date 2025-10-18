@@ -305,7 +305,8 @@
                 stripesColor: playerFish.stripesColor,
                 bodyColor: playerFish.bodyColor,
                 maxAdditionalFish: playerFish.maxAdditionalFish,
-                numAdditionalFish: playerFish.numAdditionalFish
+                numAdditionalFish: playerFish.numAdditionalFish,
+                spawnEventsProcessed: playerFish.spawnEventsProcessed
             };
             setCookie('fishData', JSON.stringify(data), 3650);
         }
@@ -325,12 +326,36 @@
                     if (playerFish.maxAdditionalFish > 20) playerFish.maxAdditionalFish = 20;
                     playerFish.numAdditionalFish = data.numAdditionalFish || 0;
                     if (playerFish.numAdditionalFish > 20) playerFish.numAdditionalFish = 20;
+                    playerFish.spawnEventsProcessed = data.spawnEventsProcessed || 0;
                 } catch (e) {
                     console.error("Could not parse fish data from cookie.", e);
                     assignNewFish();
                 }
             } else {
                 assignNewFish();
+            }
+        }
+
+        function reconcileFish() {
+            if (playerFish.maxAdditionalFish == 0) {
+                return;
+            }
+            const spawnEventsOccurred = Math.floor(playerFish.foodEaten / 50);
+            if (spawnEventsOccurred > playerFish.spawnEventsProcessed) {
+                if (playerFish.numAdditionalFish < 20) {
+                    const numToSpawn = Math.floor(Math.random() * playerFish.maxAdditionalFish) + 1;
+                    for (let i = 0; i < numToSpawn; i++) {
+                        if (playerFish.numAdditionalFish < 20) {
+                            allFish.push(new Fish(false));
+                            playerFish.numAdditionalFish++;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                playerFish.spawnEventsProcessed++;
+                saveFishData();
+                reconcileFish();
             }
         }
         
@@ -348,6 +373,7 @@
             playerFish.bodyColor = '#ff8c00';
             playerFish.maxAdditionalFish = 3;
             playerFish.numAdditionalFish = 0;
+            playerFish.spawnEventsProcessed = 0;
             saveFishData();
         }
 
@@ -383,6 +409,7 @@
                     this.outlineColor = '#000000';
                     this.maxAdditionalFish = 3;
                     this.numAdditionalFish = 0;
+                    this.spawnEventsProcessed = 0;
                 } else {
                     this.bodyColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
                     this.stripesColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
@@ -502,21 +529,8 @@
                         this.angle = 0;
                         if (this.isPlayer && this.state === 'eating') {
                             foodBubble.active = false;
-                            const foodEatenBefore = this.foodEaten;
                             this.foodEaten++;
-
-                            // Check if a new fish should spawn
-                            if (this.maxAdditionalFish > 0 && Math.floor(this.foodEaten / 50) > Math.floor(foodEatenBefore / 50)) {
-                                const numToSpawn = Math.floor(Math.random() * this.maxAdditionalFish) + 1;
-                                for (let i = 0; i < numToSpawn; i++) {
-                                    if (this.numAdditionalFish < 20) { // Overall cap of 20 additional fish
-                                        allFish.push(new Fish(false));
-                                        this.numAdditionalFish++;
-                                    }
-                                }
-                            }
-
-                            saveFishData();
+                            reconcileFish(); // This handles spawning and saving
                             this.speed = this.originalSpeed;
                             this.setNewTarget();
                         } else if (this.state === 'investigating') {
@@ -599,6 +613,7 @@
         playerFish = new Fish(true);
         allFish.push(playerFish);
         loadFishData();
+        reconcileFish();
 
         // Spawn initial set of non-player fish based on saved score
         for(let i = 0; i < playerFish.numAdditionalFish; i++) {
@@ -1033,7 +1048,8 @@
             const newName = fishNameInput.value.trim();
             if (newName) playerFish.name = newName.substring(0, 15);
             playerFish.maxAdditionalFish = parseInt(maxAdditionalFishInput.value, 10);
-            saveFishData();
+            saveFishData(); // Save settings immediately
+            reconcileFish(); // Check if fish need to be spawned
             toggleSettingsPanel(); 
         });
 
