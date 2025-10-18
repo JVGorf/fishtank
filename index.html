@@ -338,18 +338,22 @@
             const desiredNumAdditionalFish = Math.min(Math.floor(playerFish.foodEaten / 50), playerFish.maxAdditionalFish);
             const diff = desiredNumAdditionalFish - playerFish.numAdditionalFish;
 
-            if (diff > 0) {
+            if (diff > 0) { // Add fish
                 for (let i = 0; i < diff; i++) {
                     allFish.push(new Fish(false));
                 }
                 playerFish.numAdditionalFish += diff;
                 saveFishData();
-            } else if (diff < 0) {
+            } else if (diff < 0) { // Mark fish for removal
                 const numToRemove = -diff;
                 let removedCount = 0;
                 for (let i = allFish.length - 1; i >= 0; i--) {
-                    if (!allFish[i].isPlayer) {
-                        allFish.splice(i, 1);
+                    const fish = allFish[i];
+                    if (!fish.isPlayer && fish.state !== 'leaving') {
+                        fish.state = 'leaving';
+                        const exitSide = fish.x < canvas.width / 2 ? -100 : canvas.width + 100;
+                        fish.target = { x: exitSide, y: Math.random() * canvas.height };
+                        fish.speed = fish.originalSpeed * 2.5;
                         removedCount++;
                         if (removedCount >= numToRemove) {
                             break;
@@ -357,7 +361,7 @@
                     }
                 }
                 playerFish.numAdditionalFish -= numToRemove;
-                if (playerFish.numAdditionalFish < 0) playerFish.numAdditionalFish = 0; // Safety check
+                if (playerFish.numAdditionalFish < 0) playerFish.numAdditionalFish = 0;
                 saveFishData();
             }
         }
@@ -1009,7 +1013,19 @@
             document.getElementById('bodyColorSection').classList.toggle('locked', playerFish.foodEaten < BODY_REQ);
         }
 
+        function saveSettings() {
+            const newName = fishNameInput.value.trim();
+            if (newName) playerFish.name = newName.substring(0, 15);
+            playerFish.maxAdditionalFish = parseInt(maxAdditionalFishInput.value, 10);
+            bgMusic.volume = volumeSlider.value / 10;
+            saveFishData();
+            reconcileFish();
+        }
+
         function toggleSettingsPanel() {
+            if (isSettingsOpen) { // Panel is open, so we're closing it
+                saveSettings();
+            }
             isSettingsOpen = !isSettingsOpen;
             if (isSettingsOpen) {
                 fishNameInput.value = playerFish.name;
@@ -1044,14 +1060,10 @@
             }
         });
 
-        volumeSlider.addEventListener('input', () => { bgMusic.volume = volumeSlider.value / 10; volumeValue.textContent = volumeSlider.value; });
+        volumeSlider.addEventListener('input', () => { volumeValue.textContent = volumeSlider.value; });
         maxAdditionalFishInput.addEventListener('input', () => { maxAdditionalFishValue.textContent = maxAdditionalFishInput.value; });
         saveSettingsBtn.addEventListener('click', () => {
-            const newName = fishNameInput.value.trim();
-            if (newName) playerFish.name = newName.substring(0, 15);
-            playerFish.maxAdditionalFish = parseInt(maxAdditionalFishInput.value, 10);
-            saveFishData(); // Save settings immediately
-            reconcileFish(); // Check if fish need to be spawned
+            saveSettings();
             toggleSettingsPanel(); 
         });
 
@@ -1073,6 +1085,16 @@
             allFish.forEach(fish => {
                 fish.update();
                 fish.draw();
+            });
+
+            // Filter out fish that have left the screen
+            allFish = allFish.filter(fish => {
+                if (fish.state === 'leaving') {
+                    if (fish.x < -fish.size * 2 || fish.x > canvas.width + fish.size * 2) {
+                        return false; // Remove from array
+                    }
+                }
+                return true; // Keep in array
             });
             
             drawUI();
