@@ -437,40 +437,42 @@
                 ctx.scale(this.direction, 1);
                 ctx.rotate(this.currentAngle);
 
+                const xOffset = this.size * 0.95; // Center the fish drawing
+
                 const bodyPath = new Path2D();
-                bodyPath.moveTo(0, 0);
-                bodyPath.quadraticCurveTo(-this.size * 0.7, -this.size * 0.9, -this.size * 1.5, 0);
-                bodyPath.quadraticCurveTo(-this.size * 0.7, this.size * 0.9, 0, 0);
+                bodyPath.moveTo(xOffset, 0);
+                bodyPath.quadraticCurveTo(-this.size * 0.7 + xOffset, -this.size * 0.9, -this.size * 1.5 + xOffset, 0);
+                bodyPath.quadraticCurveTo(-this.size * 0.7 + xOffset, this.size * 0.9, xOffset, 0);
 
                 const tailPath = new Path2D();
-                tailPath.moveTo(-this.size * 1.5, 0);
-                tailPath.quadraticCurveTo(-this.size * 1.7, -this.size * 0.5, -this.size * 1.9, -this.size * 0.4);
-                tailPath.lineTo(-this.size * 1.9, this.size * 0.4);
-                tailPath.quadraticCurveTo(-this.size * 1.7, this.size * 0.5, -this.size * 1.5, 0);
+                tailPath.moveTo(-this.size * 1.5 + xOffset, 0);
+                tailPath.quadraticCurveTo(-this.size * 1.7 + xOffset, -this.size * 0.5, -this.size * 1.9 + xOffset, -this.size * 0.4);
+                tailPath.lineTo(-this.size * 1.9 + xOffset, this.size * 0.4);
+                tailPath.quadraticCurveTo(-this.size * 1.7 + xOffset, this.size * 0.5, -this.size * 1.5 + xOffset, 0);
                 tailPath.closePath();
                 
                 const fullFishPath = new Path2D(bodyPath);
                 fullFishPath.addPath(tailPath);
 
                 const stripe1Path = new Path2D();
-                stripe1Path.moveTo(-this.size * 0.4, -this.size * 0.65);
-                stripe1Path.quadraticCurveTo(-this.size * 0.2, 0, -this.size * 0.4, this.size * 0.65);
-                stripe1Path.lineTo(-this.size * 0.6, this.size * 0.6);
-                stripe1Path.quadraticCurveTo(-this.size * 0.4, 0, -this.size * 0.6, -this.size * 0.6);
+                stripe1Path.moveTo(-this.size * 0.4 + xOffset, -this.size * 0.65);
+                stripe1Path.quadraticCurveTo(-this.size * 0.2 + xOffset, 0, -this.size * 0.4 + xOffset, this.size * 0.65);
+                stripe1Path.lineTo(-this.size * 0.6 + xOffset, this.size * 0.6);
+                stripe1Path.quadraticCurveTo(-this.size * 0.4 + xOffset, 0, -this.size * 0.6 + xOffset, -this.size * 0.6);
                 stripe1Path.closePath();
 
                 const stripe2Path = new Path2D();
-                stripe2Path.moveTo(-this.size * 0.9, -this.size * 0.8);
-                stripe2Path.quadraticCurveTo(-this.size * 0.8, 0, -this.size * 0.9, this.size * 0.8);
-                stripe2Path.lineTo(-this.size * 1.1, this.size * 0.75);
-                stripe2Path.quadraticCurveTo(-this.size * 1.0, 0, -this.size * 1.1, -this.size * 0.75);
+                stripe2Path.moveTo(-this.size * 0.9 + xOffset, -this.size * 0.8);
+                stripe2Path.quadraticCurveTo(-this.size * 0.8 + xOffset, 0, -this.size * 0.9 + xOffset, this.size * 0.8);
+                stripe2Path.lineTo(-this.size * 1.1 + xOffset, this.size * 0.75);
+                stripe2Path.quadraticCurveTo(-this.size * 1.0 + xOffset, 0, -this.size * 1.1 + xOffset, -this.size * 0.75);
                 stripe2Path.closePath();
 
                 const stripe3Path = new Path2D();
-                stripe3Path.moveTo(-this.size * 1.4, -this.size * 0.45);
-                stripe3Path.quadraticCurveTo(-this.size * 1.35, 0, -this.size * 1.4, this.size * 0.45);
-                stripe3Path.lineTo(-this.size * 1.55, this.size * 0.4);
-                stripe3Path.quadraticCurveTo(-this.size * 1.5, 0, -this.size * 1.55, -this.size * 0.4);
+                stripe3Path.moveTo(-this.size * 1.4 + xOffset, -this.size * 0.45);
+                stripe3Path.quadraticCurveTo(-this.size * 1.35 + xOffset, 0, -this.size * 1.4 + xOffset, this.size * 0.45);
+                stripe3Path.lineTo(-this.size * 1.55 + xOffset, this.size * 0.4);
+                stripe3Path.quadraticCurveTo(-this.size * 1.5 + xOffset, 0, -this.size * 1.55 + xOffset, -this.size * 0.4);
                 stripe3Path.closePath();
 
                 ctx.fillStyle = this.bodyColor;
@@ -500,14 +502,14 @@
                 const eyeRadius = this.size * 0.2, pupilRadius = this.size * 0.1;
                 ctx.fillStyle = 'white';
                 ctx.beginPath();
-                ctx.arc(-this.size * 0.3, -this.size * 0.15, eyeRadius, 0, Math.PI * 2);
+                ctx.arc(-this.size * 0.3 + xOffset, -this.size * 0.15, eyeRadius, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.strokeStyle = '#000000';
                 ctx.lineWidth = 1;
                 ctx.stroke();
                 ctx.fillStyle = '#000000';
                 ctx.beginPath();
-                ctx.arc(-this.size * 0.3 + this.pupilOffsetX, -this.size * 0.15 + this.pupilOffsetY, pupilRadius, 0, Math.PI * 2);
+                ctx.arc(-this.size * 0.3 + xOffset + this.pupilOffsetX, -this.size * 0.15 + this.pupilOffsetY, pupilRadius, 0, Math.PI * 2);
                 ctx.fill();
 
                 ctx.restore();
