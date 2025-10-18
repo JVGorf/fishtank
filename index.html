@@ -218,6 +218,10 @@
             <div class="color-swatches" id="bodyColorSwatches"></div>
         </div>
 
+        <label for="soundPromptSlider" style="margin-top: 20px;">Disable sound prompt?</label>
+        <input type="range" id="soundPromptSlider" min="0" max="1" value="0">
+        <div class="volume-display" id="soundPromptValue">No</div>
+
         <button id="saveSettingsBtn">Save</button>
     </div>
 
@@ -231,9 +235,10 @@
         const fishNameInput = document.getElementById('fishNameInput');
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeValue = document.getElementById('volumeValue');
-        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-        const maxAdditionalFishInput = document.getElementById('maxAdditionalFishInput');
         const maxAdditionalFishValue = document.getElementById('maxAdditionalFishValue');
+        const soundPromptSlider = document.getElementById('soundPromptSlider');
+        const soundPromptValue = document.getElementById('soundPromptValue');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
         const soundNotice = document.getElementById('soundNotice');
         const lockedNotice = document.getElementById('lockedNotice');
         let isSettingsOpen = false;
@@ -305,7 +310,8 @@
                 stripesColor: playerFish.stripesColor,
                 bodyColor: playerFish.bodyColor,
                 maxAdditionalFish: playerFish.maxAdditionalFish,
-                numAdditionalFish: playerFish.numAdditionalFish
+                numAdditionalFish: playerFish.numAdditionalFish,
+                disableSoundPrompt: playerFish.disableSoundPrompt
             };
             setCookie('fishData', JSON.stringify(data), 3650);
         }
@@ -325,6 +331,7 @@
                     if (playerFish.maxAdditionalFish > 20) playerFish.maxAdditionalFish = 20;
                     playerFish.numAdditionalFish = data.numAdditionalFish || 0;
                     if (playerFish.numAdditionalFish > 20) playerFish.numAdditionalFish = 20;
+                    playerFish.disableSoundPrompt = data.disableSoundPrompt || 0;
                 } catch (e) {
                     console.error("Could not parse fish data from cookie.", e);
                     assignNewFish();
@@ -380,6 +387,7 @@
             playerFish.bodyColor = '#ff8c00';
             playerFish.maxAdditionalFish = 3;
             playerFish.numAdditionalFish = 0;
+            playerFish.disableSoundPrompt = 0;
             saveFishData();
         }
 
@@ -415,6 +423,7 @@
                     this.outlineColor = '#000000';
                     this.maxAdditionalFish = 3;
                     this.numAdditionalFish = 0;
+                    this.disableSoundPrompt = 0;
                 } else {
                     this.bodyColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
                     this.stripesColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
@@ -619,6 +628,9 @@
         playerFish = new Fish(true);
         allFish.push(playerFish);
         loadFishData();
+        if (playerFish.disableSoundPrompt == 1) {
+            soundNotice.style.display = 'none';
+        }
         reconcileFish();
 
         // Spawn initial set of non-player fish based on saved score
@@ -1018,6 +1030,7 @@
             if (newName) playerFish.name = newName.substring(0, 15);
             playerFish.maxAdditionalFish = parseInt(maxAdditionalFishInput.value, 10);
             bgMusic.volume = volumeSlider.value / 10;
+            playerFish.disableSoundPrompt = parseInt(soundPromptSlider.value, 10);
             saveFishData();
             reconcileFish();
         }
@@ -1033,6 +1046,8 @@
                 volumeValue.textContent = volumeSlider.value;
                 maxAdditionalFishInput.value = playerFish.maxAdditionalFish;
                 maxAdditionalFishValue.textContent = playerFish.maxAdditionalFish;
+                soundPromptSlider.value = playerFish.disableSoundPrompt;
+                soundPromptValue.textContent = playerFish.disableSoundPrompt == 1 ? 'Yes' : 'No';
                 updateOptionsLockState();
                 updateSelectedSwatchUI();
                 settingsPanel.classList.add('visible');
@@ -1062,6 +1077,9 @@
 
         volumeSlider.addEventListener('input', () => { volumeValue.textContent = volumeSlider.value; });
         maxAdditionalFishInput.addEventListener('input', () => { maxAdditionalFishValue.textContent = maxAdditionalFishInput.value; });
+        soundPromptSlider.addEventListener('input', () => {
+            soundPromptValue.textContent = soundPromptSlider.value == 1 ? 'Yes' : 'No';
+        });
         saveSettingsBtn.addEventListener('click', () => {
             saveSettings();
             toggleSettingsPanel(); 
