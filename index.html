@@ -224,9 +224,16 @@
 
         <label for="soundPromptSlider" style="margin-top: 20px;">Disable Startup Sound Prompt?</label>
         <input type="range" id="soundPromptSlider" min="0" max="1" value="0">
-        <div class="volume-display" id="soundPromptValue">No</div>
+        <div class="volume-display" id="soundPromptValue" style="margin-bottom: 10px;">No</div>
 
-        <button id="saveSettingsBtn">Save</button>
+        <button id="saveSettingsBtn" style="margin-top: 10px;">Save</button>
+
+        <div id="credits-section" style="margin-top: 30px; text-align: center; font-size: 0.8em; color: #ccc;">
+            <h4 style="margin: 10px 0;">Credits</h4>
+            <p style="margin: 5px 0;">Development By <a href="https://jvgorf.github.io/web/" target="_blank" style="color: #00c3ff;">JV Gorf</a></p>
+            <p style="margin: 5px 0;">Background Sound By <a href="https://pixabay.com/users/joelfazhari-16466931/" target="_blank" style="color: #00c3ff;">JoelFazhari</a></p>
+            <p style="margin: 5px 0;">Sound Effects By <a href="https://pixabay.com/users/dragon-studio-38165424/" target="_blank" style="color: #00c3ff;">Dragon Studio</a></p>
+        </div>
     </div>
 
     <script>
@@ -264,7 +271,7 @@
         canvas.height = window.innerHeight;
         
         // --- Audio Setup ---
-        const bgMusic = new Audio('https://onx.wdfiles.com/local--files/fishtank/JoelFazhari-aquarium-ambience-sounds-10-min-193236.mp3');
+        const bgMusic = new Audio('https://jvgorf.github.io/fishtank/JoelFazhari-aquarium-ambience-sounds-10-min-193236.mp3');
         bgMusic.loop = true;
         bgMusic.volume = 0.5;
         const popSound = new Audio('https://jvgorf.github.io/fishtank/pop-402323-by-Dragon-Studio.mp3');
