@@ -1075,7 +1075,7 @@
             }
         });
 
-        volumeSlider.addEventListener('input', () => { volumeValue.textContent = volumeSlider.value; });
+        volumeSlider.addEventListener('input', () => { bgMusic.volume = volumeSlider.value / 10; volumeValue.textContent = volumeSlider.value; });
         maxAdditionalFishInput.addEventListener('input', () => { maxAdditionalFishValue.textContent = maxAdditionalFishInput.value; });
         soundPromptSlider.addEventListener('input', () => {
             soundPromptValue.textContent = soundPromptSlider.value == 1 ? 'Yes' : 'No';
