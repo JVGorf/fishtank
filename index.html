@@ -305,8 +305,7 @@
                 stripesColor: playerFish.stripesColor,
                 bodyColor: playerFish.bodyColor,
                 maxAdditionalFish: playerFish.maxAdditionalFish,
-                numAdditionalFish: playerFish.numAdditionalFish,
-                spawnEventsProcessed: playerFish.spawnEventsProcessed
+                numAdditionalFish: playerFish.numAdditionalFish
             };
             setCookie('fishData', JSON.stringify(data), 3650);
         }
@@ -326,7 +325,6 @@
                     if (playerFish.maxAdditionalFish > 20) playerFish.maxAdditionalFish = 20;
                     playerFish.numAdditionalFish = data.numAdditionalFish || 0;
                     if (playerFish.numAdditionalFish > 20) playerFish.numAdditionalFish = 20;
-                    playerFish.spawnEventsProcessed = data.spawnEventsProcessed || 0;
                 } catch (e) {
                     console.error("Could not parse fish data from cookie.", e);
                     assignNewFish();
@@ -337,25 +335,30 @@
         }
 
         function reconcileFish() {
-            if (playerFish.maxAdditionalFish == 0) {
-                return;
-            }
-            const spawnEventsOccurred = Math.floor(playerFish.foodEaten / 50);
-            if (spawnEventsOccurred > playerFish.spawnEventsProcessed) {
-                if (playerFish.numAdditionalFish < 20) {
-                    const numToSpawn = Math.floor(Math.random() * playerFish.maxAdditionalFish) + 1;
-                    for (let i = 0; i < numToSpawn; i++) {
-                        if (playerFish.numAdditionalFish < 20) {
-                            allFish.push(new Fish(false));
-                            playerFish.numAdditionalFish++;
-                        } else {
+            const desiredNumAdditionalFish = Math.min(Math.floor(playerFish.foodEaten / 50), playerFish.maxAdditionalFish);
+            const diff = desiredNumAdditionalFish - playerFish.numAdditionalFish;
+
+            if (diff > 0) {
+                for (let i = 0; i < diff; i++) {
+                    allFish.push(new Fish(false));
+                }
+                playerFish.numAdditionalFish += diff;
+                saveFishData();
+            } else if (diff < 0) {
+                const numToRemove = -diff;
+                let removedCount = 0;
+                for (let i = allFish.length - 1; i >= 0; i--) {
+                    if (!allFish[i].isPlayer) {
+                        allFish.splice(i, 1);
+                        removedCount++;
+                        if (removedCount >= numToRemove) {
                             break;
                         }
                     }
                 }
-                playerFish.spawnEventsProcessed++;
+                playerFish.numAdditionalFish -= numToRemove;
+                if (playerFish.numAdditionalFish < 0) playerFish.numAdditionalFish = 0; // Safety check
                 saveFishData();
-                reconcileFish();
             }
         }
         
@@ -373,7 +376,6 @@
             playerFish.bodyColor = '#ff8c00';
             playerFish.maxAdditionalFish = 3;
             playerFish.numAdditionalFish = 0;
-            playerFish.spawnEventsProcessed = 0;
             saveFishData();
         }
 
@@ -409,7 +411,6 @@
                     this.outlineColor = '#000000';
                     this.maxAdditionalFish = 3;
                     this.numAdditionalFish = 0;
-                    this.spawnEventsProcessed = 0;
                 } else {
                     this.bodyColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
                     this.stripesColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
@@ -530,7 +531,8 @@
                         if (this.isPlayer && this.state === 'eating') {
                             foodBubble.active = false;
                             this.foodEaten++;
-                            reconcileFish(); // This handles spawning and saving
+                            saveFishData();
+                            reconcileFish();
                             this.speed = this.originalSpeed;
                             this.setNewTarget();
                         } else if (this.state === 'investigating') {
