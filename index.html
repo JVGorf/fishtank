@@ -199,6 +199,10 @@
         <input type="range" id="volumeSlider" min="0" max="10" value="5">
         <div class="volume-display" id="volumeValue">5</div>
         
+        <label for="maxAdditionalFishInput" style="margin-top: 20px;">Max additional fish:</label>
+        <input type="range" id="maxAdditionalFishInput" min="0" max="20" value="3">
+        <div class="volume-display" id="maxAdditionalFishValue">3</div>
+        
         <div id="outlineColorSection" class="color-section">
             <label>Outline Color (Requires 50 Food)</label>
             <div class="color-swatches" id="outlineColorSwatches"></div>
@@ -228,6 +232,8 @@
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeValue = document.getElementById('volumeValue');
         const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const maxAdditionalFishInput = document.getElementById('maxAdditionalFishInput');
+        const maxAdditionalFishValue = document.getElementById('maxAdditionalFishValue');
         const soundNotice = document.getElementById('soundNotice');
         const lockedNotice = document.getElementById('lockedNotice');
         let isSettingsOpen = false;
@@ -297,7 +303,9 @@
                 volume: bgMusic.volume,
                 outlineColor: playerFish.outlineColor,
                 stripesColor: playerFish.stripesColor,
-                bodyColor: playerFish.bodyColor
+                bodyColor: playerFish.bodyColor,
+                maxAdditionalFish: playerFish.maxAdditionalFish,
+                numAdditionalFish: playerFish.numAdditionalFish
             };
             setCookie('fishData', JSON.stringify(data), 3650);
         }
@@ -313,6 +321,10 @@
                     playerFish.outlineColor = data.outlineColor || '#000000';
                     playerFish.stripesColor = data.stripesColor || '#ffffff';
                     playerFish.bodyColor = data.bodyColor || '#ff8c00';
+                    playerFish.maxAdditionalFish = data.maxAdditionalFish !== undefined ? data.maxAdditionalFish : 3;
+                    if (playerFish.maxAdditionalFish > 20) playerFish.maxAdditionalFish = 20;
+                    playerFish.numAdditionalFish = data.numAdditionalFish || 0;
+                    if (playerFish.numAdditionalFish > 20) playerFish.numAdditionalFish = 20;
                 } catch (e) {
                     console.error("Could not parse fish data from cookie.", e);
                     assignNewFish();
@@ -334,6 +346,8 @@
             playerFish.outlineColor = '#000000';
             playerFish.stripesColor = '#ffffff';
             playerFish.bodyColor = '#ff8c00';
+            playerFish.maxAdditionalFish = 3;
+            playerFish.numAdditionalFish = 0;
             saveFishData();
         }
 
@@ -367,6 +381,8 @@
                     this.bodyColor = '#ff8c00';
                     this.stripesColor = '#ffffff';
                     this.outlineColor = '#000000';
+                    this.maxAdditionalFish = 3;
+                    this.numAdditionalFish = 0;
                 } else {
                     this.bodyColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
                     this.stripesColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
@@ -486,16 +502,22 @@
                         this.angle = 0;
                         if (this.isPlayer && this.state === 'eating') {
                             foodBubble.active = false;
+                            const foodEatenBefore = this.foodEaten;
                             this.foodEaten++;
+
+                            // Check if a new fish should spawn
+                            if (this.maxAdditionalFish > 0 && Math.floor(this.foodEaten / 50) > Math.floor(foodEatenBefore / 50)) {
+                                const numToSpawn = Math.floor(Math.random() * this.maxAdditionalFish) + 1;
+                                for (let i = 0; i < numToSpawn; i++) {
+                                    if (this.numAdditionalFish < 20) { // Overall cap of 20 additional fish
+                                        allFish.push(new Fish(false));
+                                        this.numAdditionalFish++;
+                                    }
+                                }
+                            }
+
                             saveFishData();
                             this.speed = this.originalSpeed;
-                            
-                            // Check if a new fish should spawn
-                            const requiredFishCount = 1 + Math.floor(playerFish.foodEaten / 50);
-                            if (allFish.length < requiredFishCount) {
-                                allFish.push(new Fish(false));
-                            }
-                            
                             this.setNewTarget();
                         } else if (this.state === 'investigating') {
                             this.state = 'inspecting';
@@ -579,9 +601,10 @@
         loadFishData();
 
         // Spawn initial set of non-player fish based on saved score
-        const initialFishCount = 1 + Math.floor(playerFish.foodEaten / 50);
-        for(let i = 1; i < initialFishCount; i++) {
-            allFish.push(new Fish(false));
+        for(let i = 0; i < playerFish.numAdditionalFish; i++) {
+            if (allFish.length < 100) { // Hard cap
+                allFish.push(new Fish(false));
+            }
         }
 
 
@@ -975,6 +998,8 @@
                 fishNameInput.value = playerFish.name;
                 volumeSlider.value = bgMusic.volume * 10;
                 volumeValue.textContent = volumeSlider.value;
+                maxAdditionalFishInput.value = playerFish.maxAdditionalFish;
+                maxAdditionalFishValue.textContent = playerFish.maxAdditionalFish;
                 updateOptionsLockState();
                 updateSelectedSwatchUI();
                 settingsPanel.classList.add('visible');
@@ -1003,9 +1028,11 @@
         });
 
         volumeSlider.addEventListener('input', () => { bgMusic.volume = volumeSlider.value / 10; volumeValue.textContent = volumeSlider.value; });
+        maxAdditionalFishInput.addEventListener('input', () => { maxAdditionalFishValue.textContent = maxAdditionalFishInput.value; });
         saveSettingsBtn.addEventListener('click', () => {
             const newName = fishNameInput.value.trim();
             if (newName) playerFish.name = newName.substring(0, 15);
+            playerFish.maxAdditionalFish = parseInt(maxAdditionalFishInput.value, 10);
             saveFishData();
             toggleSettingsPanel(); 
         });
