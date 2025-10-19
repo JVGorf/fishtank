@@ -206,6 +206,10 @@
         <label for="soundEffectsVolumeSlider" style="margin-top: 20px;">Sound Effects Volume:</label>
         <input type="range" id="soundEffectsVolumeSlider" min="0" max="10" value="5">
         <div class="volume-display" id="soundEffectsVolumeValue">5</div>
+
+        <label for="soundPromptSlider" style="margin-top: 20px;">Disable Startup Sound Prompt?</label>
+        <input type="range" id="soundPromptSlider" min="0" max="1" value="0">
+        <div class="volume-display" id="soundPromptValue" style="margin-bottom: 10px;">No</div>
         
         <div id="outlineColorSection" class="color-section">
             <label>Outline Color (Requires 50 Food)</label>
@@ -222,9 +226,9 @@
             <div class="color-swatches" id="bodyColorSwatches"></div>
         </div>
 
-        <label for="soundPromptSlider" style="margin-top: 20px;">Disable Startup Sound Prompt?</label>
-        <input type="range" id="soundPromptSlider" min="0" max="1" value="0">
-        <div class="volume-display" id="soundPromptValue" style="margin-bottom: 10px;">No</div>
+        <label for="fpsMeterSlider" style="margin-top: 20px;">FPS Meter</label>
+        <input type="range" id="fpsMeterSlider" min="0" max="1" value="0">
+        <div class="volume-display" id="fpsMeterValue" style="margin-bottom: 10px;">Disabled</div>
 
         <button id="saveSettingsBtn" style="margin-top: 10px;">Save</button>
 
@@ -251,6 +255,8 @@
         const maxAdditionalFishValue = document.getElementById('maxAdditionalFishValue');
         const soundPromptSlider = document.getElementById('soundPromptSlider');
         const soundPromptValue = document.getElementById('soundPromptValue');
+        const fpsMeterSlider = document.getElementById('fpsMeterSlider');
+        const fpsMeterValue = document.getElementById('fpsMeterValue');
         const saveSettingsBtn = document.getElementById('saveSettingsBtn');
         const soundNotice = document.getElementById('soundNotice');
         const lockedNotice = document.getElementById('lockedNotice');
@@ -326,7 +332,8 @@
                 bodyColor: playerFish.bodyColor,
                 maxAdditionalFish: playerFish.maxAdditionalFish,
                 numAdditionalFish: playerFish.numAdditionalFish,
-                disableSoundPrompt: playerFish.disableSoundPrompt
+                disableSoundPrompt: playerFish.disableSoundPrompt,
+                showFPS: playerFish.showFPS
             };
             setCookie('fishData', JSON.stringify(data), 3650);
         }
@@ -348,6 +355,7 @@
                     playerFish.numAdditionalFish = data.numAdditionalFish || 0;
                     if (playerFish.numAdditionalFish > 20) playerFish.numAdditionalFish = 20;
                     playerFish.disableSoundPrompt = data.disableSoundPrompt || 0;
+                    playerFish.showFPS = data.showFPS || 0;
                 } catch (e) {
                     console.error("Could not parse fish data from cookie.", e);
                     assignNewFish();
@@ -405,8 +413,12 @@
             playerFish.maxAdditionalFish = 3;
             playerFish.numAdditionalFish = 0;
             playerFish.disableSoundPrompt = 0;
+            playerFish.showFPS = 0;
             saveFishData();
         }
+
+        let lastTime = 0;
+        let fps = 0;
 
         // --- Fish Class ---
         class Fish {
@@ -441,6 +453,7 @@
                     this.maxAdditionalFish = 3;
                     this.numAdditionalFish = 0;
                     this.disableSoundPrompt = 0;
+                    this.showFPS = 0;
                 } else {
                     this.bodyColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
                     this.stripesColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
@@ -636,9 +649,36 @@
 
             setInvestigationTarget() {
                 this.state = 'investigating';
+                const castleBaseX = canvas.width * 0.75;
+                const castleBaseY = canvas.height - 70;
+                const castleScale = 1.5;
+                const keepWidth = 50 * castleScale;
+                const keepHeight = 120 * castleScale;
+                const wallWidth = 60 * castleScale;
+                const wallHeight = 70 * castleScale;
+                const gateHeight = 40 * castleScale;
+
                 const points = [
-                    { x: canvas.width * 0.75, y: canvas.height - 150 }, // Castle
-                    { x: canvas.width * 0.2, y: canvas.height - 120 }  // Chest
+                    // Castle parts
+                    { x: castleBaseX, y: castleBaseY - keepHeight / 2 }, // Keep
+                    { x: castleBaseX - keepWidth / 2 - wallWidth / 2, y: castleBaseY - wallHeight / 2 }, // Left Wall
+                    { x: castleBaseX + keepWidth / 2 + wallWidth / 2, y: castleBaseY - wallHeight / 2 }, // Right Wall
+                    { x: castleBaseX, y: castleBaseY - keepHeight - 25 * castleScale }, // Roof
+                    { x: castleBaseX, y: castleBaseY - gateHeight / 2 }, // Door
+
+                    // Rocks
+                    { x: 125, y: canvas.height - 80 },
+                    { x: canvas.width - 125, y: canvas.height - 90 },
+
+                    // Plants
+                    { x: canvas.width * 0.3, y: canvas.height - 170 },
+                    { x: canvas.width * 0.3 + 20, y: canvas.height - 160 },
+                    { x: canvas.width * 0.3 + 30, y: canvas.height - 150 },
+                    { x: canvas.width * 0.9, y: canvas.height - 180 },
+                    { x: canvas.width * 0.9 + 20, y: canvas.height - 160 },
+
+                    // Chest
+                    { x: canvas.width * 0.2, y: canvas.height - 120 }
                 ];
                 this.target = points[Math.floor(Math.random() * points.length)];
             }
@@ -810,14 +850,22 @@
         function drawUI() {
             drawSettingsIcon(settingsIcon.x, settingsIcon.y, settingsIcon.size);
 
+            if (playerFish.showFPS) {
+                ctx.font = '16px Arial';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.textAlign = 'right';
+                ctx.fillText(`FPS: ${fps}`, canvas.width - 10, 10);
+            }
+
             const xStart = settingsIcon.x + 35;
             const yStart = 20;
             const fishNameText = playerFish.name;
-            const scoreText = ` Food Eaten: ${playerFish.foodEaten}`;
+            const scoreText = `  ${playerFish.foodEaten}`;
 
             ctx.font = 'bold 22px Arial';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
+            
 
             // --- Draw Fish Name with custom colors ---
             ctx.strokeStyle = playerFish.outlineColor;
@@ -828,10 +876,17 @@
 
             // --- Draw the rest of the text in default white ---
             const nameWidth = ctx.measureText(fishNameText).width;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; // Reset to default text color
-            ctx.strokeStyle = 'transparent'; // No stroke for the rest
-            ctx.lineWidth = 1; 
+            ctx.strokeStyle = playerFish.outlineColor;
+            ctx.fillStyle = playerFish.bodyColor;
+            ctx.lineWidth = 4;
+            ctx.strokeText(scoreText, xStart + nameWidth, yStart);
             ctx.fillText(scoreText, xStart + nameWidth, yStart);
+
+            // Reset shadow for other drawings
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
         }
 
         function drawWater() {
@@ -1052,6 +1107,7 @@
             bgMusic.volume = volumeSlider.value / 10;
             popSound.volume = soundEffectsVolumeSlider.value / 10;
             playerFish.disableSoundPrompt = parseInt(soundPromptSlider.value, 10);
+            playerFish.showFPS = parseInt(fpsMeterSlider.value, 10);
             saveFishData();
             reconcileFish();
         }
@@ -1071,6 +1127,8 @@
                 maxAdditionalFishValue.textContent = playerFish.maxAdditionalFish;
                 soundPromptSlider.value = playerFish.disableSoundPrompt;
                 soundPromptValue.textContent = playerFish.disableSoundPrompt == 1 ? 'Yes' : 'No';
+                fpsMeterSlider.value = playerFish.showFPS;
+                fpsMeterValue.textContent = playerFish.showFPS == 1 ? 'Enabled' : 'Disabled';
                 updateOptionsLockState();
                 updateSelectedSwatchUI();
                 settingsPanel.classList.add('visible');
@@ -1104,13 +1162,20 @@
         soundPromptSlider.addEventListener('input', () => {
             soundPromptValue.textContent = soundPromptSlider.value == 1 ? 'Yes' : 'No';
         });
+        fpsMeterSlider.addEventListener('input', () => {
+            fpsMeterValue.textContent = fpsMeterSlider.value == 1 ? 'Enabled' : 'Disabled';
+        });
         saveSettingsBtn.addEventListener('click', () => {
             saveSettings();
             toggleSettingsPanel(); 
         });
 
         // --- Main Animation Loop ---
-        function animate() {
+        function animate(currentTime) {
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            fps = Math.round(1000 / deltaTime);
+
             requestAnimationFrame(animate);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawWater();
