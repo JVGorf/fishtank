@@ -66,8 +66,56 @@
         #settingsPanel::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.5);
         }
-        #settingsPanel.visible {
+
+        /* Custom scrollbar for the help panel */
+        #helpPanel::-webkit-scrollbar {
+            width: 8px;
+        }
+        #helpPanel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        #helpPanel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+        #helpPanel::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        #settingsPanel.visible,
+        #helpPanel.visible {
             display: block;
+        }
+        #helpPanel {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            display: none; /* Initially hidden */
+            width: 280px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #helpPanel h3 {
+            margin-top: 0;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        #helpPanel p {
+            margin-bottom: 15px;
+            line-height: 1.4;
+            text-align: left;
+        }
+        #helpPanel p:last-child {
+            margin-bottom: 0;
         }
         #settingsPanel h3 {
             margin-top: 0;
@@ -240,6 +288,17 @@
         </div>
     </div>
 
+    <div id="helpPanel">
+        <h3>Help</h3>
+        <p>Welcome to a minimalistic fish tank sim! Here’s how to interact with your new aquatic friends.</p>
+
+        <p>Your fish’s name and score (food eaten) are at the top left. You do not need to feed your fish, s/he will eat food that appears from the tank floor and floats to the top. If you're impatient for unlocks, you can also press the 'F' key to drop food into the tank.</p>
+
+        <p>As your fish eats, it will grow and you will unlock new customization options in the options panel. A new fish will join for every 50 food consumed.</p>
+
+        <p>Click the '☰' icon to open the options panel. Here you can change your fish’s name, colors, and other settings. Your settings and progress is automatically stored via a cookie.</p>
+    </div>
+
     <script>
         // --- Canvas and Context Setup ---
         const canvas = document.getElementById('fishTankCanvas');
@@ -247,6 +306,7 @@
 
         // --- DOM Elements ---
         const settingsPanel = document.getElementById('settingsPanel');
+        const helpPanel = document.getElementById('helpPanel');
         const fishNameInput = document.getElementById('fishNameInput');
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeValue = document.getElementById('volumeValue');
@@ -261,6 +321,7 @@
         const soundNotice = document.getElementById('soundNotice');
         const lockedNotice = document.getElementById('lockedNotice');
         let isSettingsOpen = false;
+        let isHelpOpen = false;
         let noticeTimeout, lockedNoticeTimeout;
         
         // --- Constants & Global Variables ---
@@ -847,11 +908,24 @@
         }
 
         const settingsIcon = { x: 30, y: 30, size: 25 };
+        const helpIcon = { x: 50, y: 30, size: 25 };
+
+        function drawHelpIcon(x, y, size) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.font = `${size}px Arial`;
+            ctx.fillStyle = isHelpOpen ? '#00c3ff' : 'rgba(255, 255, 255, 0.8)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('?', 0, 0);
+            ctx.restore();
+        }
 
         function drawUI() {
             drawSettingsIcon(settingsIcon.x, settingsIcon.y, settingsIcon.size);
+            drawHelpIcon(helpIcon.x, helpIcon.y, helpIcon.size);
 
-            const xStart = settingsIcon.x + 35;
+            const xStart = helpIcon.x + 20;
             const yStart = 20;
 
             if (playerFish.showFPS) {
@@ -1138,6 +1212,15 @@
                 settingsPanel.classList.remove('visible');
             }
         }
+
+        function toggleHelpPanel() {
+            isHelpOpen = !isHelpOpen;
+            if (isHelpOpen) {
+                helpPanel.classList.add('visible');
+            } else {
+                helpPanel.classList.remove('visible');
+            }
+        }
         
         createColorSwatches('outlineColorSwatches', 'outlineColor', OUTLINE_REQ);
         createColorSwatches('stripesColorSwatches', 'stripesColor', STRIPES_REQ);
@@ -1147,8 +1230,20 @@
             const rect = canvas.getBoundingClientRect();
             const mouseX = event.clientX - rect.left;
             const mouseY = event.clientY - rect.top;
-            const dx = mouseX - settingsIcon.x, dy = mouseY - settingsIcon.y;
-            if (Math.sqrt(dx * dx + dy * dy) < settingsIcon.size) { toggleSettingsPanel(); }
+
+            const settingsDx = mouseX - settingsIcon.x, settingsDy = mouseY - settingsIcon.y;
+            if (Math.sqrt(settingsDx * settingsDx + settingsDy * settingsDy) < settingsIcon.size) {
+                if (isHelpOpen) toggleHelpPanel();
+                toggleSettingsPanel();
+                return;
+            }
+
+            const helpDx = mouseX - helpIcon.x, helpDy = mouseY - helpIcon.y;
+            if (Math.sqrt(helpDx * helpDx + helpDy * helpDy) < helpIcon.size) {
+                if (isSettingsOpen) toggleSettingsPanel();
+                toggleHelpPanel();
+                return;
+            }
         });
 
         // Add keyboard listener for feeding
